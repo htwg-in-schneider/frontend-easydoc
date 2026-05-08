@@ -1,0 +1,509 @@
+* {
+  font-family: Arial, sans-serif;
+}
+
+:root {
+  --card-width: 400px;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+.logo {
+height:90px;
+width: 90px;
+}
+
+.navigation {
+display: flex;
+height: 75px;
+max-height: 75px;
+flex-direction: row;
+gap: 20px;
+align-items: center;
+justify-content: space-between;
+padding: 0 20px;
+}
+
+.anmelden {
+  background: #155dfc;
+  box-shadow: 0 10px 22px rgba(24, 58, 150, 0.28);
+  border-radius: 20px;
+  margin-left: auto;
+}
+
+.anmelden a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 170px;
+  height: 60px;
+  padding: 0 28px;
+  color: #ffffff;
+  font-size: 30px;
+  font-weight: 700;
+  text-decoration: none; /* entfernt den Unterstrich */
+}
+
+
+.flagge {
+  height: 30px;
+  width: 45px;
+}
+
+.background_img {
+  position: relative;
+  height: 1000px;
+  width: 100%;
+  background-image: url("Background_City.svg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.Ueberschrift {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  text-align: center;
+  color: white;
+  font-size: 32px;  
+  font-weight: 700;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 1), 0 0 10px rgba(0, 0, 0, 1), 0 0 20px rgba(0, 0, 0, 1);
+}
+
+
+.Arzt_finden_Box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1000px;
+  height: 300px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;      
+  align-items: center;        
+  justify-content: center;    
+  gap: 30px;  
+}
+
+
+
+.Arzt_finden a {
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 810px;
+  height: 60px;
+  padding: 0 28px;
+  color: #ffffff;
+  font-size: 30px;
+  font-weight: 700;
+  text-decoration: none; /* entfernt den Unterstrich */
+  background: #155dfc;
+  border-radius: 10px;
+}
+
+.suchfelder {
+  display: flex;
+  gap: 20px;
+}
+
+.suchfelder select,
+.suchfelder input {
+  height: 55px;
+  border-radius: 10px;
+  width: 400px;
+  border: 1px solid #ccc;
+  padding: 0 10px;
+  box-shadow: 0 10px 22px rgba(24, 58, 150, 0.28);
+}
+
+.suchfelder button {
+  height: 50px;
+  padding: 0 20px;
+  background: #155dfc;
+  color: white;
+  border: none;
+  border-radius: 10px;
+}
+
+
+/*Hier ist mein Teil:*/
+
+
+.funktionen{
+    display: flex;
+    text-align: center;
+    justify-content: center;
+    gap: 40px;
+}
+
+.FunktionenUeberschrift{
+    display: flex;
+    text-align: center;
+    justify-content: center;
+}
+
+.Symptomanalyse{
+    background:#f0f6fe;
+    border-radius: 20px;
+    padding: 20px;
+    width: var(--card-width);
+    margin-top: 20px;
+    margin-bottom: 50px;
+    }
+
+.Symptomanalyse ul {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.Arzt_finden2 {
+  background: #f0f6fe;
+  border-radius: 20px;
+  padding: 20px;
+  width: var(--card-width);
+  margin-top: 20px;
+  margin-bottom: 50px;
+}
+
+.Arzt_finden2 ul {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+
+
+.WhatsEasyDoc {
+ display: flex;
+  align-items: flex-start; 
+  justify-content: space-between;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 80px 20px;
+  gap: 50px;
+}
+
+
+.ExplainEasyDoc {
+  flex: 1;
+}
+
+.ExplainEasyDoc h1 {
+  font-size: 48px;
+  margin-bottom: 20px;
+  margin-bottom: 30px;
+  margin-top: 0;
+}
+
+.ExplainEasyDoc p {
+  font-size: 20px;
+  margin-bottom: 100px;
+  color: #555;
+}
+
+.ExplainEasyDoc ul {
+  list-style: none;
+  padding: 0;
+  margin-top: 0;
+}
+
+.ExplainEasyDoc li {
+  margin-bottom: 12px;
+  font-size: 20px;
+  position: relative;
+  padding-left: 25px;
+}
+
+
+.ExplainEasyDoc li::before {
+  content: "✔";
+  position: absolute;
+  left: 0;
+  color: #155dfc;
+}
+
+
+.DocImage {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.DocImage img {
+  max-width: 100%;
+  height: auto;
+}
+
+
+.ziele {
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.ziele h2 {
+  font-size: 36px;
+  margin-bottom: 50px;
+}
+
+/* GRID = KEY */
+.ziele-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2 Spalten */
+  gap: 30px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* CARD */
+.ziel-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: #f8fafc;
+  padding: 25px;
+  border-radius: 20px;
+  text-align: left;
+}
+
+/* IMAGE */
+.ziel-card img {
+  width: 80px;
+}
+
+.ziele h2{
+  font-size: 45px;
+}
+
+/* TEXT */
+.ziel-card h3 {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.ziel-card p {
+  color: #666;
+  font-size: 20px;
+}
+
+
+
+.footer {
+  background: #0b1220;
+  color: white;
+  padding: 50px 80px 20px;
+}
+
+.footer-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.footer-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 250px;
+}
+
+.footer-column a {
+  color: #cbd5e1;
+  text-decoration: none;
+}
+
+.footer-column h3,
+.footer-column h4 {
+  margin: 0 0 10px;
+}
+
+.footer-column p {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.footer-bottom {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+
+
+
+
+
+@media (max-width: 768px) {
+ 
+  .navigation {
+    height: auto;
+    padding: 0 10px;
+    width: 90%;
+    justify-content: space-between;
+  }
+  .logo {
+    height: 60px;
+    width: 60px;
+  }
+
+  .anmelden {
+    margin-left: 0;
+  }
+  .anmelden a {
+    min-width: 120px;
+    height: 40px;
+    font-size: 20px;
+    padding: 0 16px;
+  }
+
+  .flagge {
+  height: 30px;
+  width: 40px;
+  margin-right: 10px;
+  }
+
+  .Ueberschrift {
+  width: 100%;
+  color: white;
+  font-size: 18px;  
+  text-shadow: 0 0 5px rgba(0, 0, 0, 1), 0 0 10px rgba(0, 0, 0, 1), 0 0 20px rgba(0, 0, 0, 1);
+  }
+
+  .background_img {
+    height: 600px;
+    width: 100%;
+  }
+
+.suchfelder {
+  margin-top: 40px;
+  display: flex;
+  gap: 20px;
+
+}
+
+.suchfelder select,
+.suchfelder input {
+  height: 55px;
+  width: 40%;
+  border: 1px solid #ccc;
+  justify-content: center;
+  display: flex;  
+  box-shadow: 0 10px 22px rgba(24, 58, 150, 0.28);
+}
+
+
+
+  .Arzt_finden_Box {
+    width: 80%;
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .Arzt_finden a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80%;
+  height: 60px;
+  color: #ffffff;
+  font-size: 30px;
+  font-weight: 700;
+  text-decoration: none; /* entfernt den Unterstrich */
+  background: #155dfc;
+  border-radius: 10px;
+}
+
+
+
+.ziele {
+    padding: 50px 15px;
+  }
+
+  .ziele-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .ziel-card {
+    width: 100%;
+    max-width: 320px;
+    padding: 18px;
+    margin: 0 auto;
+  }
+
+  .ziel-card img {
+    width: 60px;
+  }
+
+  .ziel-card h3 {
+    font-size: 20px;
+  }
+
+  .ziel-card p {
+    font-size: 16px;
+  }
+
+
+
+
+
+.funktionen{
+    display: flex;
+    text-align: center;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+}
+
+.FunktionenUeberschrift{
+    display: flex;
+    text-align: center;
+    justify-content: center;
+}
+
+.Symptomanalyse{
+    background:#f0f6fe;
+    border-radius: 20px;
+    width: 80%;
+    margin-top: 20px;
+    margin-bottom: 50px;
+    }
+
+.Symptomanalyse ul {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.Arzt_finden2 {
+  background: #f0f6fe;
+  border-radius: 20px;
+  width: 80%;
+  margin-top: 5px;
+  margin-bottom: 50px;
+}
+
+.Arzt_finden2 ul {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+}
