@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../4. Semester/Teamprojekt/ATCMatch"
+		},
+		{
+			"path": "../../../../../4. Semester/Teamprojekt/PilotGrid"
+		},
+		{
+			"path": "../../../../../../../../SWEN2/group02"
+		},
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../frontend-static-easybase"
+		},
+		{
+			"path": "../../../saitenweise-frontend"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "frontend-static-easybase",
+		"java.compile.nullAnalysis.mode": "automatic"
+	}
+}
