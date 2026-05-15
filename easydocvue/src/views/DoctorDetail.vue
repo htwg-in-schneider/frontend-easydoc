@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { doctors as localDoctors } from '@/data.js'
+import { useDoctorStore } from '@/stores/doctors'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
@@ -14,13 +14,8 @@ const doctorTypeLabels: Record<string, string> = {
 }
 
 const route = useRoute()
-const doctor = ref<typeof localDoctors[number] | null>(null)
-
-onMounted(() => {
-  // Later: replace with fetch from backend
-  const id = Number(route.params.id)
-  doctor.value = localDoctors.find((d) => d.id === id) ?? null
-})
+const doctorStore = useDoctorStore()
+const doctor = ref(doctorStore.getById(Number(route.params.id)) ?? null)
 </script>
 
 <template>
@@ -49,6 +44,9 @@ onMounted(() => {
       </div>
 
       <div class="detail-actions">
+        <router-link class="btn btn-primary" :to="`/doctor/edit/${doctor.id}`">
+          Bearbeiten
+        </router-link>
         <router-link class="btn btn-secondary" to="/doctors">
           ← Zurück
         </router-link>
@@ -143,6 +141,15 @@ onMounted(() => {
 
 .btn-secondary:hover {
   background: #dce8fd;
+}
+
+.btn-primary {
+  background: #155dfc;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #0f4ad4;
 }
 
 @media (max-width: 600px) {

@@ -30,6 +30,9 @@ defineProps<{
       <router-link class="btn btn-primary" :to="`/doctor/view/${doctor.id}`">
         Details
       </router-link>
+      <router-link class="btn btn-secondary" :to="`/doctor/edit/${doctor.id}`">
+        Bearbeiten
+      </router-link>
     </div>
   </div>
 </template>
@@ -96,5 +99,14 @@ defineProps<{
 
 .btn-primary:hover {
   background: #0f4ad4;
+}
+
+.btn-secondary {
+  background: #f0f6fe;
+  color: #155dfc;
+}
+
+.btn-secondary:hover {
+  background: #dce8fd;
 }
 </style>
