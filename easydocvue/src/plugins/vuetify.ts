@@ -14,6 +14,17 @@ import 'vuetify/styles'
 // https://vuetifyjs.com/en/introduction/why-vuetify/#feature-guides
 export default createVuetify({
   theme: {
-    defaultTheme: 'system',
+    defaultTheme: 'easydoc',
+    themes: {
+      easydoc: {
+        dark: false,
+        colors: {
+          primary: '#155dfc',
+          secondary: '#7AAE38',
+          background: '#ffffff',
+          surface: '#ffffff',
+        },
+      },
+    },
   },
 })

@@ -1,50 +1,11 @@
 * {
   font-family: Arial, sans-serif;
-}
-
-:root {
-  --card-width: 400px;
+  box-sizing: border-box;
 }
 
 html, body {
   margin: 0;
   padding: 0;
-}
-
-.logo {
-height:90px;
-width: 90px;
-}
-
-.navigation {
-display: flex;
-height: 75px;
-max-height: 75px;
-flex-direction: row;
-gap: 20px;
-align-items: center;
-justify-content: space-between;
-padding: 0 20px;
-}
-
-.anmelden {
-  background: #155dfc;
-  box-shadow: 0 10px 22px rgba(24, 58, 150, 0.28);
-  border-radius: 20px;
-  margin-left: auto;
-}
-
-.anmelden a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 170px;
-  height: 60px;
-  padding: 0 28px;
-  color: #ffffff;
-  font-size: 30px;
-  font-weight: 700;
-  text-decoration: none; /* entfernt den Unterstrich */
 }
 
 
