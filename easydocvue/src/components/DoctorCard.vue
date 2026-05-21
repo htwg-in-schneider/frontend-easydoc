@@ -1,10 +1,10 @@
 <script setup lang="ts">
 const doctorTypeLabels: Record<string, string> = {
-  general_practitioner: 'Hausarzt',
-  cardiologist: 'Kardiologe',
-  dermatologist: 'Dermatologe',
-  orthopedist: 'Orthopäde',
-  neurologist: 'Neurologe',
+  GENERAL_PRACTITIONER: 'Hausarzt',
+  CARDIOLOGIST: 'Kardiologe',
+  DERMATOLOGIST: 'Dermatologe',
+  ORTHOPEDIST: 'Orthopäde',
+  NEUROLOGIST: 'Neurologe',
 }
 
 defineProps<{

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useDoctorStore } from '@/stores/doctors'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
@@ -9,8 +9,14 @@ import DoctorFilter from '@/components/DoctorFilter.vue'
 const doctorStore = useDoctorStore()
 const doctors = ref(doctorStore.doctors)
 
-function onFilter(filters: { name: string; doctorType: string }) {
-  doctors.value = doctorStore.search(filters)
+onMounted(async () => {
+  await doctorStore.fetchAll()
+  doctors.value = doctorStore.doctors
+})
+
+async function onFilter(filters: { name: string; doctorType: string }) {
+  await doctorStore.search(filters)
+  doctors.value = doctorStore.doctors
 }
 </script>
 

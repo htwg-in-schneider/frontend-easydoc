@@ -1,21 +1,43 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useDoctorStore } from '@/stores/doctors'
+import { useDoctorStore, type Doctor, type Appointment } from '@/stores/doctors'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
+import DoctorAppointments from '@/components/DoctorAppointments.vue'
 
 const doctorTypeLabels: Record<string, string> = {
-  general_practitioner: 'Hausarzt',
-  cardiologist: 'Kardiologe',
-  dermatologist: 'Dermatologe',
-  orthopedist: 'Orthopäde',
-  neurologist: 'Neurologe',
+  GENERAL_PRACTITIONER: 'Hausarzt',
+  CARDIOLOGIST: 'Kardiologe',
+  DERMATOLOGIST: 'Dermatologe',
+  ORTHOPEDIST: 'Orthopäde',
+  NEUROLOGIST: 'Neurologe',
 }
 
 const route = useRoute()
 const doctorStore = useDoctorStore()
-const doctor = ref(doctorStore.getById(Number(route.params.id)) ?? null)
+const doctor = ref<Doctor | null>(null)
+const appointments = ref<Appointment[]>([])
+
+onMounted(async () => {
+  const id = Number(route.params.id)
+  doctor.value = await doctorStore.getById(id)
+  if (doctor.value) {
+    appointments.value = await doctorStore.getAppointments(id)
+  }
+})
+
+async function onAppointmentAdded() {
+  if (doctor.value) {
+    appointments.value = await doctorStore.getAppointments(doctor.value.id)
+  }
+}
+
+async function onAppointmentDeleted() {
+  if (doctor.value) {
+    appointments.value = await doctorStore.getAppointments(doctor.value.id)
+  }
+}
 </script>
 
 <template>
@@ -52,6 +74,13 @@ const doctor = ref(doctorStore.getById(Number(route.params.id)) ?? null)
         </router-link>
       </div>
     </div>
+
+    <DoctorAppointments
+      :doctor-id="doctor.id"
+      :appointments="appointments"
+      @added="onAppointmentAdded"
+      @deleted="onAppointmentDeleted"
+    />
   </section>
 
   <section class="detail-container" v-else>

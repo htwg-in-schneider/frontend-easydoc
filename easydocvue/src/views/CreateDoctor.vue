@@ -9,11 +9,11 @@ const router = useRouter()
 const doctorStore = useDoctorStore()
 
 const doctorTypes = [
-  { value: 'general_practitioner', label: 'Hausarzt' },
-  { value: 'cardiologist', label: 'Kardiologe' },
-  { value: 'dermatologist', label: 'Dermatologe' },
-  { value: 'orthopedist', label: 'Orthopäde' },
-  { value: 'neurologist', label: 'Neurologe' },
+  { value: 'GENERAL_PRACTITIONER', label: 'Hausarzt' },
+  { value: 'CARDIOLOGIST', label: 'Kardiologe' },
+  { value: 'DERMATOLOGIST', label: 'Dermatologe' },
+  { value: 'ORTHOPEDIST', label: 'Orthopäde' },
+  { value: 'NEUROLOGIST', label: 'Neurologe' },
 ]
 
 const form = ref({
@@ -23,12 +23,12 @@ const form = ref({
   doctorType: '',
 })
 
-function onCreate() {
+async function onCreate() {
   if (!form.value.name || !form.value.surname || !form.value.doctorType) {
     alert('Bitte alle Pflichtfelder ausfüllen.')
     return
   }
-  doctorStore.add(form.value)
+  await doctorStore.add(form.value)
   alert('Arzt erfolgreich erstellt!')
   router.push('/doctors')
 }

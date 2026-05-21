@@ -10,11 +10,11 @@ const router = useRouter()
 const doctorStore = useDoctorStore()
 
 const doctorTypes = [
-  { value: 'general_practitioner', label: 'Hausarzt' },
-  { value: 'cardiologist', label: 'Kardiologe' },
-  { value: 'dermatologist', label: 'Dermatologe' },
-  { value: 'orthopedist', label: 'Orthopäde' },
-  { value: 'neurologist', label: 'Neurologe' },
+  { value: 'GENERAL_PRACTITIONER', label: 'Hausarzt' },
+  { value: 'CARDIOLOGIST', label: 'Kardiologe' },
+  { value: 'DERMATOLOGIST', label: 'Dermatologe' },
+  { value: 'ORTHOPEDIST', label: 'Orthopäde' },
+  { value: 'NEUROLOGIST', label: 'Neurologe' },
 ]
 
 const form = ref({
@@ -26,9 +26,9 @@ const form = ref({
 
 const doctorId = ref(0)
 
-onMounted(() => {
+onMounted(async () => {
   const id = Number(route.params.id)
-  const doctor = doctorStore.getById(id)
+  const doctor = await doctorStore.getById(id)
   if (!doctor) {
     alert('Arzt nicht gefunden.')
     router.push('/doctors')
@@ -43,19 +43,19 @@ onMounted(() => {
   }
 })
 
-function onUpdate() {
+async function onUpdate() {
   if (!form.value.name || !form.value.surname || !form.value.doctorType) {
     alert('Bitte alle Pflichtfelder ausfüllen.')
     return
   }
-  doctorStore.update(doctorId.value, form.value)
+  await doctorStore.update(doctorId.value, form.value)
   alert('Arzt erfolgreich aktualisiert!')
   router.push('/doctors')
 }
 
-function onDelete() {
+async function onDelete() {
   if (!confirm('Möchten Sie diesen Arzt wirklich löschen?')) return
-  doctorStore.remove(doctorId.value)
+  await doctorStore.remove(doctorId.value)
   alert('Arzt erfolgreich gelöscht!')
   router.push('/doctors')
 }

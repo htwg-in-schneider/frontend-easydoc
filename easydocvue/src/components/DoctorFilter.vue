@@ -6,11 +6,11 @@ const emit = defineEmits<{
 }>()
 
 const doctorTypes = [
-  { value: 'general_practitioner', label: 'Hausarzt' },
-  { value: 'cardiologist', label: 'Kardiologe' },
-  { value: 'dermatologist', label: 'Dermatologe' },
-  { value: 'orthopedist', label: 'Orthopäde' },
-  { value: 'neurologist', label: 'Neurologe' },
+  { value: 'GENERAL_PRACTITIONER', label: 'Hausarzt' },
+  { value: 'CARDIOLOGIST', label: 'Kardiologe' },
+  { value: 'DERMATOLOGIST', label: 'Dermatologe' },
+  { value: 'ORTHOPEDIST', label: 'Orthopäde' },
+  { value: 'NEUROLOGIST', label: 'Neurologe' },
 ]
 
 const searchName = ref('')
