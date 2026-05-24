@@ -21,7 +21,7 @@ import bgImage from '@/assets/images/Background_City.svg'
       </div>
 
       <div class="arzt-finden">
-        <router-link to="/doctors">Arzt finden</router-link>
+        <router-link to="/login">Arzt finden</router-link>
       </div>
     </div>
   </div>

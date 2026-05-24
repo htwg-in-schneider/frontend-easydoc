@@ -16,7 +16,7 @@ import flagge from '@/assets/images/DeutschlandFlagge.png'
 
     <div class="nav-right">
       <div class="anmelden">
-        <a href="#">Anmelden</a>
+        <router-link to="/login">Anmelden</router-link>
       </div>
       <div class="sprache">
         <a href="#">
