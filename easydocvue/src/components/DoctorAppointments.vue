@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useDoctorStore, type Appointment } from '@/stores/doctors'
+import { usePopupStore } from '@/stores/popup'
 
 const props = defineProps<{
   doctorId: number
@@ -13,32 +14,49 @@ const emit = defineEmits<{
 }>()
 
 const doctorStore = useDoctorStore()
+const popup = usePopupStore()
 
 const showForm = ref(false)
 const form = ref({
-  patientName: '',
   date: '',
-  description: '',
+  time: '',
+  price: 0,
 })
 
 async function onAdd() {
-  if (!form.value.patientName || !form.value.date) {
-    alert('Bitte Patientenname und Datum ausfüllen.')
+  if (!form.value.date || !form.value.time) {
+    await popup.showMessage({
+      title: 'Termin unvollständig',
+      message: 'Bitte Datum und Uhrzeit ausfüllen.',
+      variant: 'warning',
+    })
     return
   }
   await doctorStore.addAppointment({
-    patientName: form.value.patientName,
     date: form.value.date,
-    description: form.value.description,
+    time: form.value.time,
+    price: form.value.price,
     doctor: { id: props.doctorId },
   })
-  form.value = { patientName: '', date: '', description: '' }
+  form.value = { date: '', time: '', price: 0 }
   showForm.value = false
   emit('added')
 }
 
+function userName(appointment: Appointment) {
+  const user = appointment.user
+  return [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Termin ohne Patient'
+}
+
 async function onDelete(id: number) {
-  if (!confirm('Termin wirklich löschen?')) return
+  const confirmed = await popup.showConfirmation({
+    title: 'Termin löschen',
+    message: 'Termin wirklich löschen?',
+    confirmLabel: 'Löschen',
+    variant: 'danger',
+  })
+
+  if (!confirmed) return
   await doctorStore.removeAppointment(id)
   emit('deleted')
 }
@@ -53,12 +71,12 @@ async function onDelete(id: number) {
       </button>
     </div>
 
-    <form v-if="showForm" class="appointment-form" @submit.prevent="onAdd">
+    <form v-if="showForm" class="appointment-form" novalidate @submit.prevent="onAdd">
       <div class="form-row">
-        <input v-model="form.patientName" type="text" placeholder="Patientenname *" required>
         <input v-model="form.date" type="date" required>
+        <input v-model="form.time" type="time" required>
       </div>
-      <input v-model="form.description" type="text" placeholder="Beschreibung">
+      <input v-model.number="form.price" type="number" min="0" step="0.01" placeholder="Preis">
       <button type="submit" class="btn btn-primary btn-sm">Hinzufügen</button>
     </form>
 
@@ -69,9 +87,11 @@ async function onDelete(id: number) {
     <div v-else class="appointment-list">
       <div v-for="appt in appointments" :key="appt.id" class="appointment-card">
         <div class="appointment-info">
-          <strong>{{ appt.patientName }}</strong>
-          <span class="appointment-date">{{ appt.date }}</span>
-          <span v-if="appt.description" class="appointment-desc">{{ appt.description }}</span>
+          <strong>{{ userName(appt) }}</strong>
+          <span class="appointment-date">
+            {{ appt.date }}<span v-if="appt.time"> um {{ appt.time }}</span>
+          </span>
+          <span v-if="appt.price !== null" class="appointment-desc">{{ appt.price }} EUR</span>
         </div>
         <button class="btn-delete" @click="onDelete(appt.id)">✕</button>
       </div>

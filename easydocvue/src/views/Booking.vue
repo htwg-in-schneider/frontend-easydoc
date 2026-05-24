@@ -9,8 +9,10 @@ const router = useRouter(); // Router-Instanz holen
 // Statische Arzt-Daten für die Anzeige
 const doctor = ref({
   id: 1,
-  name: 'Dr. med. Eva Musterfrau',
-  specialty: 'Kardiologie',
+  title: 'Dr. med.',
+  firstName: 'Eva',
+  lastName: 'Musterfrau',
+  doctorType: { name: 'Kardiologie' },
   image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=2070&auto=format&fit=crop'
 });
 
@@ -39,10 +41,10 @@ const goToSlotSelection = () => {
               </v-col>
               <v-col cols="8">
                 <v-card-title class="text-h5">
-                  {{ doctor.name }}
+                  {{ doctor.title }} {{ doctor.firstName }} {{ doctor.lastName }}
                 </v-card-title>
                 <v-card-subtitle>
-                  {{ doctor.specialty }}
+                  {{ doctor.doctorType.name }}
                 </v-card-subtitle>
                 <v-card-text>
                   Wählen Sie einen Arzt aus, um einen Termin zu vereinbaren.

@@ -1,22 +1,29 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useDoctorStore } from '@/stores/doctors'
+import { onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useDoctorStore, type DoctorSearchFilters } from '@/stores/doctors'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import DoctorCard from '@/components/DoctorCard.vue'
 import DoctorFilter from '@/components/DoctorFilter.vue'
 
 const doctorStore = useDoctorStore()
-const doctors = ref(doctorStore.doctors)
+const { doctors } = storeToRefs(doctorStore)
 
 onMounted(async () => {
-  await doctorStore.fetchAll()
-  doctors.value = doctorStore.doctors
+  try {
+    await doctorStore.fetchAll()
+  } catch (error) {
+    console.error('Doctor loading failed', error)
+  }
 })
 
-async function onFilter(filters: { name: string; doctorType: string }) {
-  await doctorStore.search(filters)
-  doctors.value = doctorStore.doctors
+async function onFilter(filters: DoctorSearchFilters) {
+  try {
+    await doctorStore.search(filters)
+  } catch (error) {
+    console.error('Doctor search failed', error)
+  }
 }
 </script>
 

@@ -1,35 +1,73 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
-import { useDoctorStore } from '@/stores/doctors'
+import { useDoctorStore, type DoctorPayload, type DoctorType } from '@/stores/doctors'
+import { usePopupStore } from '@/stores/popup'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
 const router = useRouter()
 const doctorStore = useDoctorStore()
+const popup = usePopupStore()
+const { doctorTypes } = storeToRefs(doctorStore)
 
-const doctorTypes = [
-  { value: 'GENERAL_PRACTITIONER', label: 'Hausarzt' },
-  { value: 'CARDIOLOGIST', label: 'Kardiologe' },
-  { value: 'DERMATOLOGIST', label: 'Dermatologe' },
-  { value: 'ORTHOPEDIST', label: 'Orthopäde' },
-  { value: 'NEUROLOGIST', label: 'Neurologe' },
-]
+type DoctorForm = Omit<DoctorPayload, 'doctorType'>
 
-const form = ref({
-  name: '',
-  surname: '',
-  age: 30,
-  doctorType: '',
+const form = ref<DoctorForm>({
+  title: 'Dr. med.',
+  firstName: '',
+  lastName: '',
+  practiceName: '',
+  status: 'active',
+  rating: 0,
+  phoneNumber: '',
+  email: '',
+  website: '',
+  distance: 0,
+  imageUrl: null,
+  street: '',
+  postcode: '',
+  city: '',
+  country: 'Germany',
+})
+const doctorTypeId = ref<number | null>(null)
+
+onMounted(async () => {
+  try {
+    await doctorStore.fetchDoctorTypes()
+    doctorTypeId.value = doctorTypes.value[0]?.id ?? null
+  } catch (error) {
+    console.error('Doctor type loading failed', error)
+  }
 })
 
+function selectedDoctorType(): DoctorType | null {
+  return doctorTypes.value.find((type) => type.id === doctorTypeId.value) ?? null
+}
+
+function toDoctorPayload(): DoctorPayload {
+  return {
+    ...form.value,
+    doctorType: selectedDoctorType(),
+  }
+}
+
 async function onCreate() {
-  if (!form.value.name || !form.value.surname || !form.value.doctorType) {
-    alert('Bitte alle Pflichtfelder ausfüllen.')
+  if (!form.value.firstName || !form.value.lastName || !form.value.practiceName || !doctorTypeId.value) {
+    await popup.showMessage({
+      title: 'Pflichtfelder fehlen',
+      message: 'Bitte alle Pflichtfelder ausfüllen.',
+      variant: 'warning',
+    })
     return
   }
-  await doctorStore.add(form.value)
-  alert('Arzt erfolgreich erstellt!')
+  await doctorStore.add(toDoctorPayload())
+  await popup.showMessage({
+    title: 'Arzt erstellt',
+    message: 'Arzt erfolgreich erstellt.',
+    variant: 'success',
+  })
   router.push('/doctors')
 }
 </script>
@@ -40,30 +78,91 @@ async function onCreate() {
   <div class="form-container">
     <h2>Neuen Arzt anlegen</h2>
 
-    <form @submit.prevent="onCreate">
+    <form novalidate @submit.prevent="onCreate">
       <div class="form-group">
-        <label for="name">Vorname *</label>
-        <input id="name" type="text" v-model="form.name" placeholder="z.B. Heinz" required>
+        <label for="title">Titel</label>
+        <input id="title" type="text" v-model="form.title" placeholder="z.B. Dr. med.">
       </div>
 
       <div class="form-group">
-        <label for="surname">Nachname *</label>
-        <input id="surname" type="text" v-model="form.surname" placeholder="z.B. Meyer" required>
+        <label for="firstName">Vorname *</label>
+        <input id="firstName" type="text" v-model="form.firstName" placeholder="z.B. Hans" required>
       </div>
 
       <div class="form-group">
-        <label for="age">Alter</label>
-        <input id="age" type="number" v-model.number="form.age" min="25" max="99">
+        <label for="lastName">Nachname *</label>
+        <input id="lastName" type="text" v-model="form.lastName" placeholder="z.B. Müller" required>
+      </div>
+
+      <div class="form-group">
+        <label for="practiceName">Praxisname *</label>
+        <input
+          id="practiceName"
+          type="text"
+          v-model="form.practiceName"
+          placeholder="z.B. Praxis Müller"
+          required
+        >
       </div>
 
       <div class="form-group">
         <label for="doctorType">Fachrichtung *</label>
-        <select id="doctorType" v-model="form.doctorType" required>
+        <select id="doctorType" v-model.number="doctorTypeId" required>
           <option value="" disabled>Bitte wählen</option>
-          <option v-for="type in doctorTypes" :key="type.value" :value="type.value">
-            {{ type.label }}
+          <option v-for="type in doctorTypes" :key="type.id" :value="type.id">
+            {{ type.name }}
           </option>
         </select>
+      </div>
+
+      <div class="form-group">
+        <label for="status">Status</label>
+        <input id="status" type="text" v-model="form.status" placeholder="active">
+      </div>
+
+      <div class="form-group">
+        <label for="rating">Bewertung</label>
+        <input id="rating" type="number" v-model.number="form.rating" min="0" max="5" step="0.1">
+      </div>
+
+      <div class="form-group">
+        <label for="phoneNumber">Telefon</label>
+        <input id="phoneNumber" type="tel" v-model="form.phoneNumber" placeholder="+49 123 456789">
+      </div>
+
+      <div class="form-group">
+        <label for="email">E-Mail</label>
+        <input id="email" type="email" v-model="form.email" placeholder="kontakt@praxis.de">
+      </div>
+
+      <div class="form-group">
+        <label for="website">Website</label>
+        <input id="website" type="text" v-model="form.website" placeholder="www.praxis.de">
+      </div>
+
+      <div class="form-group">
+        <label for="street">Straße</label>
+        <input id="street" type="text" v-model="form.street" placeholder="Hauptstraße 10">
+      </div>
+
+      <div class="form-group">
+        <label for="postcode">Postleitzahl</label>
+        <input id="postcode" type="text" v-model="form.postcode" placeholder="70001">
+      </div>
+
+      <div class="form-group">
+        <label for="city">Stadt</label>
+        <input id="city" type="text" v-model="form.city" placeholder="Stuttgart">
+      </div>
+
+      <div class="form-group">
+        <label for="country">Land</label>
+        <input id="country" type="text" v-model="form.country" placeholder="Germany">
+      </div>
+
+      <div class="form-group">
+        <label for="distance">Entfernung (km)</label>
+        <input id="distance" type="number" v-model.number="form.distance" min="0" step="0.1">
       </div>
 
       <div class="form-actions">

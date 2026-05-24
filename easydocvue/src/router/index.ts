@@ -17,7 +17,7 @@ const routes = [
     component: DoctorDetail,
   },
   { path: '/doctor/create', component: CreateDoctor },
-  { path: '/doctor/edit/:id', component: EditDoctor },
+  { path: '/doctor/edit/:id', name: 'doctor-edit', component: EditDoctor },
   { path: '/booking', component: Booking },
   { path: '/slot-selection', component: SlotSelection },
   { path: '/booking-confirmation', component: BookingConfirmation },

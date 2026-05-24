@@ -8,8 +8,10 @@ const router = useRouter(); // 2. Router-Instanz holen
 
 // Statische Daten, die normalerweise vom Backend oder aus dem Router-State kommen würden
 const doctor = ref({
-  name: 'Dr. Sarah Fischer',
-  specialty: 'Lungenarzt',
+  title: 'Dr.',
+  firstName: 'Sarah',
+  lastName: 'Fischer',
+  doctorType: { name: 'Lungenarzt' },
 });
 
 const selectedDate = ref('Dienstag, 14. April 2026');
@@ -39,7 +41,9 @@ const confirmAppointment = () => {
       <v-col cols="12" md="8" lg="6">
         <v-card class="pa-6">
           <h1 class="text-h5 font-weight-bold mb-1">Termin buchen</h1>
-          <p class="text-body-1 mb-6 text-primary">{{ doctor.name }} • {{ doctor.specialty }}</p>
+          <p class="text-body-1 mb-6 text-primary">
+            {{ doctor.title }} {{ doctor.firstName }} {{ doctor.lastName }} • {{ doctor.doctorType.name }}
+          </p>
 
           <label class="font-weight-medium">Datum auswählen</label>
           <v-select

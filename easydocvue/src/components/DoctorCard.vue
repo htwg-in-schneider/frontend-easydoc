@@ -1,21 +1,14 @@
 <script setup lang="ts">
-const doctorTypeLabels: Record<string, string> = {
-  GENERAL_PRACTITIONER: 'Hausarzt',
-  CARDIOLOGIST: 'Kardiologe',
-  DERMATOLOGIST: 'Dermatologe',
-  ORTHOPEDIST: 'Orthopäde',
-  NEUROLOGIST: 'Neurologe',
-}
+import { computed } from 'vue'
+import type { Doctor } from '@/stores/doctors'
+import { formatDoctorName, getDoctorTypeName } from '@/stores/doctors'
 
-defineProps<{
-  doctor: {
-    id: number
-    name: string
-    surname: string
-    age: number
-    doctorType: string
-  }
+const props = defineProps<{
+  doctor: Doctor
 }>()
+
+const detailRoute = computed(() => ({ name: 'doctor', params: { id: props.doctor.id } }))
+const editRoute = computed(() => ({ name: 'doctor-edit', params: { id: props.doctor.id } }))
 </script>
 
 <template>
@@ -23,14 +16,24 @@ defineProps<{
     <div class="card-icon">
       <v-icon size="48" color="#155dfc">mdi-doctor</v-icon>
     </div>
-    <h3>Dr. {{ doctor.name }} {{ doctor.surname }}</h3>
-    <p class="doctor-type">{{ doctorTypeLabels[doctor.doctorType] || doctor.doctorType }}</p>
-    <p class="doctor-age">Alter: {{ doctor.age }}</p>
+    <h3>{{ formatDoctorName(doctor) }}</h3>
+    <p v-if="doctor.practiceName" class="practice-name">{{ doctor.practiceName }}</p>
+    <p class="doctor-type">{{ getDoctorTypeName(doctor.doctorType) }}</p>
+    <div class="doctor-meta">
+      <span v-if="doctor.rating !== null" class="meta-item">
+        <v-icon size="16">mdi-star</v-icon>
+        {{ doctor.rating }}
+      </span>
+      <span v-if="doctor.distance !== null" class="meta-item">
+        <v-icon size="16">mdi-map-marker-distance</v-icon>
+        {{ doctor.distance }} km
+      </span>
+    </div>
     <div class="card-actions">
-      <router-link class="btn btn-primary" :to="`/doctor/view/${doctor.id}`">
+      <router-link v-if="doctor.id !== undefined" class="btn btn-primary" :to="detailRoute">
         Details
       </router-link>
-      <router-link class="btn btn-secondary" :to="`/doctor/edit/${doctor.id}`">
+      <router-link v-if="doctor.id !== undefined" class="btn btn-secondary" :to="editRoute">
         Bearbeiten
       </router-link>
     </div>
@@ -65,13 +68,30 @@ defineProps<{
 .doctor-type {
   color: #155dfc;
   font-weight: 600;
-  margin: 0 0 4px;
+  margin: 0 0 12px;
 }
 
-.doctor-age {
-  color: #888;
-  margin: 0 0 16px;
+.practice-name {
+  color: #666;
+  font-weight: 500;
+  margin: 0 0 4px;
   font-size: 14px;
+}
+
+.doctor-meta {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  min-height: 20px;
+  margin-bottom: 16px;
+  color: #555;
+  font-size: 13px;
+}
+
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .card-actions {

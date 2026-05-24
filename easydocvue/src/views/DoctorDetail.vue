@@ -1,26 +1,36 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useDoctorStore, type Doctor, type Appointment } from '@/stores/doctors'
+import {
+  formatDoctorName,
+  getDoctorTypeName,
+  useDoctorStore,
+  type Doctor,
+  type Appointment,
+} from '@/stores/doctors'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import DoctorAppointments from '@/components/DoctorAppointments.vue'
-
-const doctorTypeLabels: Record<string, string> = {
-  GENERAL_PRACTITIONER: 'Hausarzt',
-  CARDIOLOGIST: 'Kardiologe',
-  DERMATOLOGIST: 'Dermatologe',
-  ORTHOPEDIST: 'Orthopäde',
-  NEUROLOGIST: 'Neurologe',
-}
 
 const route = useRoute()
 const doctorStore = useDoctorStore()
 const doctor = ref<Doctor | null>(null)
 const appointments = ref<Appointment[]>([])
 
+function toExternalUrl(url: string | null) {
+  if (!url) return ''
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`
+}
+
 onMounted(async () => {
-  const id = Number(route.params.id)
+  const rawId = route.params.id
+  const id = Number(rawId)
+
+  if (!rawId || Number.isNaN(id)) {
+    doctor.value = null
+    return
+  }
+
   doctor.value = await doctorStore.getById(id)
   if (doctor.value) {
     appointments.value = await doctorStore.getAppointments(id)
@@ -49,24 +59,47 @@ async function onAppointmentDeleted() {
         <v-icon size="80" color="#155dfc">mdi-doctor</v-icon>
       </div>
 
-      <h2>Dr. {{ doctor.name }} {{ doctor.surname }}</h2>
+      <h2>{{ formatDoctorName(doctor) }}</h2>
+      <p class="practice-name" v-if="doctor.practiceName">{{ doctor.practiceName }}</p>
       <span class="doctor-type-badge">
-        {{ doctorTypeLabels[doctor.doctorType] || doctor.doctorType }}
+        {{ getDoctorTypeName(doctor.doctorType) }}
       </span>
 
       <div class="detail-info">
-        <div class="info-row">
-          <v-icon size="20" class="mr-2">mdi-cake-variant</v-icon>
-          <span>Alter: {{ doctor.age }}</span>
+        <div class="info-row" v-if="doctor.rating !== undefined && doctor.rating !== null">
+          <v-icon size="20" class="mr-2">mdi-star</v-icon>
+          <span>Bewertung: {{ doctor.rating }}</span>
         </div>
         <div class="info-row">
           <v-icon size="20" class="mr-2">mdi-stethoscope</v-icon>
-          <span>{{ doctorTypeLabels[doctor.doctorType] || doctor.doctorType }}</span>
+          <span>{{ getDoctorTypeName(doctor.doctorType) }}</span>
+        </div>
+        <div class="info-row" v-if="doctor.city || doctor.country">
+          <v-icon size="20" class="mr-2">mdi-map-marker</v-icon>
+          <span>{{ doctor.city }}<span v-if="doctor.city && doctor.country">, </span>{{ doctor.country }}</span>
+        </div>
+        <div class="info-row" v-if="doctor.phoneNumber">
+          <v-icon size="20" class="mr-2">mdi-phone</v-icon>
+          <span>{{ doctor.phoneNumber }}</span>
+        </div>
+        <div class="info-row" v-if="doctor.email">
+          <v-icon size="20" class="mr-2">mdi-email</v-icon>
+          <span>{{ doctor.email }}</span>
+        </div>
+        <div class="info-row" v-if="doctor.website">
+          <v-icon size="20" class="mr-2">mdi-web</v-icon>
+          <a :href="toExternalUrl(doctor.website)" target="_blank" rel="noopener noreferrer">
+            {{ doctor.website }}
+          </a>
+        </div>
+        <div class="info-row" v-if="doctor.distance !== undefined && doctor.distance !== null">
+          <v-icon size="20" class="mr-2">mdi-map-marker-distance</v-icon>
+          <span>{{ doctor.distance }} km entfernt</span>
         </div>
       </div>
 
       <div class="detail-actions">
-        <router-link class="btn btn-primary" :to="`/doctor/edit/${doctor.id}`">
+        <router-link class="btn btn-primary" :to="{ name: 'doctor-edit', params: { id: doctor.id } }">
           Bearbeiten
         </router-link>
         <router-link class="btn btn-secondary" to="/doctors">
@@ -116,6 +149,11 @@ async function onAppointmentDeleted() {
   font-size: 28px;
   margin: 0 0 12px;
   color: #333;
+}
+.practice-name {
+  margin: -4px 0 16px;
+  color: #666;
+  font-size: 16px;
 }
 
 .doctor-type-badge {
