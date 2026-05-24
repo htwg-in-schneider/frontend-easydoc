@@ -52,6 +52,8 @@ export interface DoctorSearchFilters {
   doctorType?: string
   city?: string
   status?: string
+  minRating?: number
+  maxDistance?: number
 }
 
 async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
@@ -111,9 +113,12 @@ export const useDoctorStore = defineStore('doctors', () => {
 
     const query = params.toString()
     const data = await requestJson<Doctor[]>(`${API_BASE}/doctors${query ? `?${query}` : ''}`)
-    doctors.value = (Array.isArray(data) ? data : []).filter((doctor) =>
-      matchesDoctorType(doctor, filters.doctorType),
-    )
+    doctors.value = (Array.isArray(data) ? data : []).filter((doctor) => {
+      if (!matchesDoctorType(doctor, filters.doctorType)) return false
+      if (filters.minRating && (doctor.rating === null || doctor.rating < filters.minRating)) return false
+      if (filters.maxDistance && (doctor.distance === null || doctor.distance > filters.maxDistance)) return false
+      return true
+    })
     return doctors.value
   }
 

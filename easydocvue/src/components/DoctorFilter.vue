@@ -12,6 +12,8 @@ const { doctorTypes } = storeToRefs(doctorStore)
 
 const searchName = ref('')
 const selectedType = ref('')
+const minRating = ref('')
+const maxDistance = ref('')
 
 onMounted(async () => {
   try {
@@ -22,12 +24,19 @@ onMounted(async () => {
 })
 
 function onSearch() {
-  emit('filter', { name: searchName.value, doctorType: selectedType.value })
+  emit('filter', {
+    name: searchName.value,
+    doctorType: selectedType.value,
+    minRating: minRating.value ? Number(minRating.value) : undefined,
+    maxDistance: maxDistance.value ? Number(maxDistance.value) : undefined,
+  })
 }
 
 function onReset() {
   searchName.value = ''
   selectedType.value = ''
+  minRating.value = ''
+  maxDistance.value = ''
   emit('filter', { name: '', doctorType: '' })
 }
 </script>
@@ -47,6 +56,23 @@ function onReset() {
       <option v-for="type in doctorTypes" :key="type.id" :value="String(type.id)">
         {{ type.name }}
       </option>
+    </select>
+
+    <select v-model="minRating" class="filter-select" @change="onSearch">
+      <option value="">Bewertung</option>
+      <option value="4.5">⭐ 4.5+</option>
+      <option value="4.0">⭐ 4.0+</option>
+      <option value="3.5">⭐ 3.5+</option>
+      <option value="3.0">⭐ 3.0+</option>
+    </select>
+
+    <select v-model="maxDistance" class="filter-select" @change="onSearch">
+      <option value="">Entfernung</option>
+      <option value="1">📍 bis 1 km</option>
+      <option value="2">📍 bis 2 km</option>
+      <option value="3">📍 bis 3 km</option>
+      <option value="5">📍 bis 5 km</option>
+      <option value="10">📍 bis 10 km</option>
     </select>
 
     <button class="btn btn-primary" @click="onSearch">Suchen</button>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, nextTick } from 'vue'
+import { onMounted, ref, nextTick, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useDoctorStore, formatDoctorName, getDoctorTypeName } from '@/stores/doctors'
@@ -18,8 +18,15 @@ const selectedDoctor = ref<Doctor | null>(null)
 let map: L.Map | null = null
 const markerMap = new Map<number, L.Marker>()
 
-// Default center: Konstanz, Germany
-const defaultCenter: [number, number] = [47.6588, 9.1753]
+// Default center: Konstanz Petershausen
+const defaultCenter: [number, number] = [47.6725, 9.1732]
+
+// Filtered and sorted: max 5km distance, highest rating first
+const filteredDoctors = computed(() => {
+  return doctors.value
+    .filter(d => d.distance !== null && d.distance <= 5)
+    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+})
 
 async function geocodeAddress(doctor: Doctor): Promise<[number, number] | null> {
   const parts = [doctor.street, doctor.postcode, doctor.city, doctor.country].filter(Boolean)
@@ -82,7 +89,7 @@ async function initMap() {
     popupAnchor: [1, -34],
   })
 
-  for (const doctor of doctors.value) {
+  for (const doctor of filteredDoctors.value) {
     const coords = await geocodeAddress(doctor)
     if (!coords) continue
 
@@ -132,7 +139,7 @@ function goToDetail(doctorId: number) {
       <!-- Doctor list sidebar -->
       <aside class="doctor-sidebar">
         <div
-          v-for="doctor in doctors"
+          v-for="doctor in filteredDoctors"
           :key="doctor.id"
           class="sidebar-card"
           :class="{ active: selectedDoctor?.id === doctor.id }"
