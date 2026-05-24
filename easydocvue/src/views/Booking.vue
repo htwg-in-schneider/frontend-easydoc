@@ -1,72 +1,247 @@
-<script setup>
-import { ref } from 'vue';
-import { useRouter } from 'vue-router'; // useRouter importieren
-import NavBar from '@/components/NavBar.vue'; 
-import AppFooter from '@/components/AppFooter.vue'; 
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useDoctorStore, formatDoctorName, getDoctorTypeName } from '@/stores/doctors'
+import type { Doctor } from '@/stores/doctors'
+import NavBar from '@/components/NavBar.vue'
+import AppFooter from '@/components/AppFooter.vue'
 
-const router = useRouter(); // Router-Instanz holen
+const router = useRouter()
+const route = useRoute()
+const doctorStore = useDoctorStore()
 
-// Statische Arzt-Daten für die Anzeige
-const doctor = ref({
-  id: 1,
-  title: 'Dr. med.',
-  firstName: 'Eva',
-  lastName: 'Musterfrau',
-  doctorType: { name: 'Kardiologie' },
-  image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=2070&auto=format&fit=crop'
-});
+const doctor = ref<Doctor | null>(null)
+const loading = ref(true)
 
-// Funktion leitet jetzt zur Slot-Auswahl weiter
-const goToSlotSelection = () => {
-  router.push('/slot-selection');
-};
+onMounted(async () => {
+  const id = Number(route.params.id)
+  if (!id) {
+    router.push('/doctors')
+    return
+  }
+  doctor.value = await doctorStore.getById(id)
+  loading.value = false
+})
+
+function goToSlotSelection() {
+  if (doctor.value) {
+    router.push({ path: '/slot-selection', query: { doctorId: String(doctor.value.id) } })
+  }
+}
 </script>
 
 <template>
   <NavBar />
   <div class="booking-page">
-    <v-container>
-      <v-row justify="center">
-        <v-col cols="12" md="8" lg="6">
-          <h1 class="text-h4 text-center mb-6">Terminbuchung</h1>
-          <v-card>
-            <v-row no-gutters>
-              <v-col cols="4">
-                <v-img
-                  :src="doctor.image"
-                  height="100%"
-                  cover
-                  class="rounded-s-lg"
-                ></v-img>
-              </v-col>
-              <v-col cols="8">
-                <v-card-title class="text-h5">
-                  {{ doctor.title }} {{ doctor.firstName }} {{ doctor.lastName }}
-                </v-card-title>
-                <v-card-subtitle>
-                  {{ doctor.doctorType.name }}
-                </v-card-subtitle>
-                <v-card-text>
-                  Wählen Sie einen Arzt aus, um einen Termin zu vereinbaren.
-                </v-card-text>
-                <v-card-actions>
-                  <v-spacer></v-spacer>
-                  <v-btn color="primary" @click="goToSlotSelection">
-                    Termin auswählen
-                  </v-btn>
-                </v-card-actions>
-              </v-col>
-            </v-row>
-          </v-card>
-        </v-col>
-      </v-row>
-    </v-container>
+    <div class="booking-container">
+      <h1 class="booking-title">Terminbuchung</h1>
+
+      <div v-if="loading" class="loading">Laden...</div>
+
+      <div v-else-if="doctor" class="doctor-booking-card">
+        <div class="doctor-info">
+          <div class="doctor-avatar">
+            <v-icon size="64" color="#155dfc">mdi-doctor</v-icon>
+          </div>
+          <div class="doctor-details">
+            <h2>{{ formatDoctorName(doctor) }}</h2>
+            <span class="doctor-type">{{ getDoctorTypeName(doctor.doctorType) }}</span>
+            <div class="doctor-meta">
+              <span v-if="doctor.rating !== null" class="meta-item">⭐ {{ doctor.rating }}</span>
+              <span v-if="doctor.distance !== null" class="meta-item">📍 {{ doctor.distance }} km</span>
+            </div>
+            <div class="doctor-contact">
+              <p v-if="doctor.street">
+                <v-icon size="16">mdi-map-marker</v-icon>
+                {{ doctor.street }}, {{ doctor.postcode }} {{ doctor.city }}
+              </p>
+              <p v-if="doctor.phoneNumber">
+                <v-icon size="16">mdi-phone</v-icon>
+                {{ doctor.phoneNumber }}
+              </p>
+              <p v-if="doctor.email">
+                <v-icon size="16">mdi-email</v-icon>
+                {{ doctor.email }}
+              </p>
+              <p v-if="doctor.website">
+                <v-icon size="16">mdi-web</v-icon>
+                {{ doctor.website }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="booking-action">
+          <p class="action-text">Möchten Sie einen Termin bei diesem Arzt buchen?</p>
+          <button class="btn-book" @click="goToSlotSelection">Termin auswählen</button>
+        </div>
+      </div>
+
+      <div v-else class="not-found">
+        <p>Arzt nicht gefunden.</p>
+        <router-link to="/doctors" class="btn-back">Zurück zur Übersicht</router-link>
+      </div>
+    </div>
   </div>
   <AppFooter />
 </template>
 
 <style scoped>
 .booking-page {
-  padding: 2rem 0;
+  min-height: calc(100vh - 75px - 200px);
+  background: #f8fafc;
+  padding: 40px 20px;
+}
+
+.booking-container {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.booking-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #333;
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.loading {
+  text-align: center;
+  color: #666;
+  font-size: 18px;
+  padding: 40px 0;
+}
+
+.doctor-booking-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.doctor-info {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.doctor-avatar {
+  flex-shrink: 0;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: #eef3fb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doctor-details h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  color: #333;
+}
+
+.doctor-type {
+  color: #155dfc;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.doctor-meta {
+  display: flex;
+  gap: 16px;
+  margin: 10px 0;
+  font-size: 14px;
+  color: #555;
+}
+
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.doctor-contact {
+  margin-top: 12px;
+}
+
+.doctor-contact p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 14px;
+  color: #555;
+}
+
+.booking-action {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #eee;
+  text-align: center;
+}
+
+.action-text {
+  font-size: 16px;
+  color: #555;
+  margin-bottom: 16px;
+}
+
+.btn-book {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 40px;
+  border: none;
+  border-radius: 10px;
+  background: #155dfc;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-book:hover {
+  background: #0f4ad4;
+}
+
+.not-found {
+  text-align: center;
+  padding: 40px 0;
+}
+
+.not-found p {
+  font-size: 18px;
+  color: #666;
+  margin-bottom: 16px;
+}
+
+.btn-back {
+  display: inline-flex;
+  padding: 12px 24px;
+  border-radius: 10px;
+  background: #155dfc;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .doctor-info {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .doctor-meta {
+    justify-content: center;
+  }
+
+  .doctor-contact p {
+    justify-content: center;
+  }
 }
 </style>

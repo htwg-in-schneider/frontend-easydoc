@@ -41,6 +41,9 @@ async function onFilter(filters: DoctorSearchFilters) {
     <DoctorFilter @filter="onFilter" />
 
     <div class="catalog-actions">
+      <router-link class="btn btn-map" to="/doctors/map">
+        🗺️ Kartenansicht
+      </router-link>
       <router-link class="btn btn-primary" to="/doctor/create">
         + Neuer Arzt
       </router-link>
@@ -86,6 +89,7 @@ async function onFilter(filters: DoctorSearchFilters) {
 .catalog-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
   margin-bottom: 24px;
 }
 
@@ -108,6 +112,15 @@ async function onFilter(filters: DoctorSearchFilters) {
 
 .btn-primary:hover {
   background: #0f4ad4;
+}
+
+.btn-map {
+  background: #1e293b;
+  color: #fff;
+}
+
+.btn-map:hover {
+  background: #334155;
 }
 
 .no-results {

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Home from '@/views/Home.vue'
 import Login from '@/views/Login.vue'
 import DoctorCatalog from '@/views/DoctorCatalog.vue'
+import MapDoctors from '@/views/MapDoctors.vue'
 import DoctorDetail from '@/views/DoctorDetail.vue'
 import CreateDoctor from '@/views/CreateDoctor.vue'
 import EditDoctor from '@/views/EditDoctor.vue'
@@ -13,6 +14,7 @@ const routes = [
   { path: '/', component: Home },
   { path: '/login', component: Login },
   { path: '/doctors', component: DoctorCatalog },
+  { path: '/doctors/map', component: MapDoctors },
   {
     path: '/doctor/view/:id',
     name: 'doctor',
@@ -20,7 +22,7 @@ const routes = [
   },
   { path: '/doctor/create', component: CreateDoctor },
   { path: '/doctor/edit/:id', name: 'doctor-edit', component: EditDoctor },
-  { path: '/booking', component: Booking },
+  { path: '/booking/:id', name: 'booking', component: Booking },
   { path: '/slot-selection', component: SlotSelection },
   { path: '/booking-confirmation', component: BookingConfirmation },
 ]
