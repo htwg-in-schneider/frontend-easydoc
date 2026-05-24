@@ -1,75 +1,62 @@
-# easydocvue
+# EasyDoc Frontend
 
-Scaffolded with Vuetify CLI.
+Vue 3 + Vuetify + TypeScript Frontend für EasyDoc.
 
-## ❗️ Documentation
+## Voraussetzungen
 
-- Primary docs: https://vuetifyjs.com/
-- Getting started guide: https://vuetifyjs.com/en/getting-started/installation/
-- Community support: https://community.vuetifyjs.com/
-- Issue tracker: https://issues.vuetifyjs.com/
+- Node.js 18+
+- npm
+- **Backend muss bereits laufen** (siehe `backend_easydoc/README.md`)
 
-## 🧱 Stack
+## Starten
+
+1. Terminal öffnen und ins Projektverzeichnis wechseln:
+
+   ```bash
+   cd frontend_easydoc/easydocvue
+   ```
+
+2. Abhängigkeiten installieren (nur beim ersten Mal oder nach Änderungen in `package.json`):
+
+   ```bash
+   npm install
+   ```
+
+3. Dev-Server starten:
+
+   ```bash
+   npm run dev
+   ```
+
+4. Warten bis in der Konsole erscheint:
+
+   ```
+   VITE ready in XXX ms
+   ➜  Local: http://localhost:3000/easydocvue/
+   ```
+
+   > Falls Port 3000 belegt ist, wählt Vite automatisch den nächsten freien Port.
+
+## Verfügbare Scripts
+
+| Script               | Beschreibung                  |
+|----------------------|-------------------------------|
+| `npm run dev`        | Dev-Server starten            |
+| `npm run build`      | Produktions-Build erstellen   |
+| `npm run preview`    | Build lokal voranschauen      |
+| `npm run type-check` | TypeScript-Typen prüfen       |
+
+## Projektstruktur
+
+- `src/main.ts` — Einstiegspunkt
+- `src/App.vue` — Root-Komponente
+- `src/components/` — Wiederverwendbare Komponenten
+- `src/plugins/` — Plugin-Setup (Vuetify, Router, etc.)
+- `src/styles/` — Globale Styles und Theme
+
+## Stack
 
 - Framework: Vue 3 + Vite
 - UI Library: Vuetify
-- Language: TypeScript
-- Package manager: npm
-
-## 🧭 Start Here
-
-- Main entry: `src/main.ts`
-- Main app component: `src/App.vue`
-- Main styles: `src/styles/`
-- Plugin setup: `src/plugins/`
-
-## 📁 Project Structure
-
-- `src/main.ts` — application entry point
-- `src/App.vue` — root component
-- `src/components/` — reusable Vue components
-- `src/plugins/` — plugin registration and setup
-- `src/styles/` — global styles and theme settings
-- `public/` — static public files
-
-## ✨ Enabled Features
-
-- Base setup
-
-## 💿 Install
-
-Use your selected package manager (npm) to install dependencies:
-
-```bash
-npm install
-```
-
-## 🚀 Quick Start
-
-```bash
-npm install
-npm run dev
-```
-
-## 🏗️ Build
-
-```bash
-npm run build
-```
-
-## 🧪 Available Scripts
-
-- `npm run dev`
-- `npm run build`
-- `npm run preview`
-- `npm run build-only`
-- `npm run type-check`
-
-## 💪 Support Vuetify Development
-
-This project uses Vuetify - an MIT licensed Open Source project. We are glad to welcome contributors and any support for ongoing development:
-
-- Contribute to Vuetify and ecosystem projects: https://github.com/vuetifyjs
-- Request enterprise support: https://support.vuetifyjs.com/
-- Sponsor on GitHub: https://github.com/sponsors/vuetifyjs
-- Support on Open Collective: https://opencollective.com/vuetify
+- Sprache: TypeScript
+- Package Manager: npm
