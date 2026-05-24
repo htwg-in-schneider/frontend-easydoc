@@ -1,20 +1,25 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useDoctorStore, type DoctorSearchFilters } from '@/stores/doctors'
 
 const emit = defineEmits<{
-  filter: [filters: { name: string; doctorType: string }]
+  filter: [filters: DoctorSearchFilters]
 }>()
 
-const doctorTypes = [
-  { value: 'GENERAL_PRACTITIONER', label: 'Hausarzt' },
-  { value: 'CARDIOLOGIST', label: 'Kardiologe' },
-  { value: 'DERMATOLOGIST', label: 'Dermatologe' },
-  { value: 'ORTHOPEDIST', label: 'Orthopäde' },
-  { value: 'NEUROLOGIST', label: 'Neurologe' },
-]
+const doctorStore = useDoctorStore()
+const { doctorTypes } = storeToRefs(doctorStore)
 
 const searchName = ref('')
 const selectedType = ref('')
+
+onMounted(async () => {
+  try {
+    await doctorStore.fetchDoctorTypes()
+  } catch (error) {
+    console.error('Doctor type loading failed', error)
+  }
+})
 
 function onSearch() {
   emit('filter', { name: searchName.value, doctorType: selectedType.value })
@@ -39,8 +44,8 @@ function onReset() {
 
     <select v-model="selectedType" class="filter-select" @change="onSearch">
       <option value="">Alle Fachrichtungen</option>
-      <option v-for="type in doctorTypes" :key="type.value" :value="type.value">
-        {{ type.label }}
+      <option v-for="type in doctorTypes" :key="type.id" :value="String(type.id)">
+        {{ type.name }}
       </option>
     </select>
 

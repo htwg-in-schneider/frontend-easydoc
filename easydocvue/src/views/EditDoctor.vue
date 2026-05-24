@@ -1,62 +1,138 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
-import { useDoctorStore } from '@/stores/doctors'
+import { useDoctorStore, type DoctorPayload, type DoctorType } from '@/stores/doctors'
+import { usePopupStore } from '@/stores/popup'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
 const route = useRoute()
 const router = useRouter()
 const doctorStore = useDoctorStore()
+const popup = usePopupStore()
+const { doctorTypes } = storeToRefs(doctorStore)
 
-const doctorTypes = [
-  { value: 'GENERAL_PRACTITIONER', label: 'Hausarzt' },
-  { value: 'CARDIOLOGIST', label: 'Kardiologe' },
-  { value: 'DERMATOLOGIST', label: 'Dermatologe' },
-  { value: 'ORTHOPEDIST', label: 'Orthopäde' },
-  { value: 'NEUROLOGIST', label: 'Neurologe' },
-]
+type DoctorForm = Omit<DoctorPayload, 'doctorType'>
 
-const form = ref({
-  name: '',
-  surname: '',
-  age: 30,
-  doctorType: '',
+const form = ref<DoctorForm>({
+  title: '',
+  firstName: '',
+  lastName: '',
+  practiceName: '',
+  status: '',
+  rating: null,
+  phoneNumber: '',
+  email: '',
+  website: '',
+  distance: null,
+  imageUrl: null,
+  street: '',
+  postcode: '',
+  city: '',
+  country: '',
 })
 
 const doctorId = ref(0)
+const doctorTypeId = ref<number | null>(null)
+const currentDoctorType = ref<DoctorType | null>(null)
 
 onMounted(async () => {
-  const id = Number(route.params.id)
+  const rawId = route.params.id
+  const id = Number(rawId)
+
+  if (!rawId || Number.isNaN(id)) {
+    await popup.showMessage({
+      title: 'Ungültige Arzt-ID',
+      message: 'Diese Arzt-ID ist ungültig.',
+      variant: 'warning',
+    })
+    router.push('/doctors')
+    return
+  }
+
+  try {
+    await doctorStore.fetchDoctorTypes()
+  } catch (error) {
+    console.error('Doctor type loading failed', error)
+  }
+
   const doctor = await doctorStore.getById(id)
   if (!doctor) {
-    alert('Arzt nicht gefunden.')
+    await popup.showMessage({
+      title: 'Arzt nicht gefunden',
+      message: 'Der ausgewählte Arzt wurde nicht gefunden.',
+      variant: 'warning',
+    })
     router.push('/doctors')
     return
   }
   doctorId.value = id
+  doctorTypeId.value = doctor.doctorType?.id ?? null
+  currentDoctorType.value = doctor.doctorType
   form.value = {
-    name: doctor.name,
-    surname: doctor.surname,
-    age: doctor.age,
-    doctorType: doctor.doctorType,
+    title: doctor.title,
+    firstName: doctor.firstName,
+    lastName: doctor.lastName,
+    practiceName: doctor.practiceName,
+    status: doctor.status,
+    rating: doctor.rating,
+    phoneNumber: doctor.phoneNumber,
+    email: doctor.email,
+    website: doctor.website,
+    distance: doctor.distance,
+    imageUrl: doctor.imageUrl,
+    street: doctor.street,
+    postcode: doctor.postcode,
+    city: doctor.city,
+    country: doctor.country,
   }
 })
 
+function selectedDoctorType(): DoctorType | null {
+  return doctorTypes.value.find((type) => type.id === doctorTypeId.value) ?? currentDoctorType.value
+}
+
+function toDoctorPayload(): DoctorPayload {
+  return {
+    ...form.value,
+    doctorType: selectedDoctorType(),
+  }
+}
+
 async function onUpdate() {
-  if (!form.value.name || !form.value.surname || !form.value.doctorType) {
-    alert('Bitte alle Pflichtfelder ausfüllen.')
+  if (!form.value.firstName || !form.value.lastName || !form.value.practiceName || !doctorTypeId.value) {
+    await popup.showMessage({
+      title: 'Pflichtfelder fehlen',
+      message: 'Bitte alle Pflichtfelder ausfüllen.',
+      variant: 'warning',
+    })
     return
   }
-  await doctorStore.update(doctorId.value, form.value)
-  alert('Arzt erfolgreich aktualisiert!')
+  await doctorStore.update(doctorId.value, toDoctorPayload())
+  await popup.showMessage({
+    title: 'Arzt aktualisiert',
+    message: 'Arzt erfolgreich aktualisiert.',
+    variant: 'success',
+  })
   router.push('/doctors')
 }
 
 async function onDelete() {
-  if (!confirm('Möchten Sie diesen Arzt wirklich löschen?')) return
+  const confirmed = await popup.showConfirmation({
+    title: 'Arzt löschen',
+    message: 'Möchten Sie diesen Arzt wirklich löschen?',
+    confirmLabel: 'Löschen',
+    variant: 'danger',
+  })
+
+  if (!confirmed) return
   await doctorStore.remove(doctorId.value)
-  alert('Arzt erfolgreich gelöscht!')
+  await popup.showMessage({
+    title: 'Arzt gelöscht',
+    message: 'Arzt erfolgreich gelöscht.',
+    variant: 'success',
+  })
   router.push('/doctors')
 }
 </script>
@@ -67,35 +143,90 @@ async function onDelete() {
   <div class="form-container">
     <h2>Arzt bearbeiten</h2>
 
-    <form @submit.prevent="onUpdate">
+    <form novalidate @submit.prevent="onUpdate">
       <div class="form-group">
         <label for="id">ID</label>
         <input id="id" type="text" :value="doctorId" readonly>
       </div>
 
       <div class="form-group">
-        <label for="name">Vorname *</label>
-        <input id="name" type="text" v-model="form.name" required>
+        <label for="title">Titel</label>
+        <input id="title" type="text" v-model="form.title" placeholder="z.B. Dr. med.">
       </div>
 
       <div class="form-group">
-        <label for="surname">Nachname *</label>
-        <input id="surname" type="text" v-model="form.surname" required>
+        <label for="firstName">Vorname *</label>
+        <input id="firstName" type="text" v-model="form.firstName" required>
       </div>
 
       <div class="form-group">
-        <label for="age">Alter</label>
-        <input id="age" type="number" v-model.number="form.age" min="25" max="99">
+        <label for="lastName">Nachname *</label>
+        <input id="lastName" type="text" v-model="form.lastName" required>
+      </div>
+
+      <div class="form-group">
+        <label for="practiceName">Praxisname *</label>
+        <input id="practiceName" type="text" v-model="form.practiceName" required>
       </div>
 
       <div class="form-group">
         <label for="doctorType">Fachrichtung *</label>
-        <select id="doctorType" v-model="form.doctorType" required>
+        <select id="doctorType" v-model.number="doctorTypeId" required>
           <option value="" disabled>Bitte wählen</option>
-          <option v-for="type in doctorTypes" :key="type.value" :value="type.value">
-            {{ type.label }}
+          <option v-for="type in doctorTypes" :key="type.id" :value="type.id">
+            {{ type.name }}
           </option>
         </select>
+      </div>
+
+      <div class="form-group">
+        <label for="status">Status</label>
+        <input id="status" type="text" v-model="form.status">
+      </div>
+
+      <div class="form-group">
+        <label for="rating">Bewertung</label>
+        <input id="rating" type="number" v-model.number="form.rating" min="0" max="5" step="0.1">
+      </div>
+
+      <div class="form-group">
+        <label for="phoneNumber">Telefon</label>
+        <input id="phoneNumber" type="tel" v-model="form.phoneNumber">
+      </div>
+
+      <div class="form-group">
+        <label for="email">E-Mail</label>
+        <input id="email" type="email" v-model="form.email">
+      </div>
+
+      <div class="form-group">
+        <label for="website">Website</label>
+        <input id="website" type="text" v-model="form.website">
+      </div>
+
+      <div class="form-group">
+        <label for="street">Straße</label>
+        <input id="street" type="text" v-model="form.street">
+      </div>
+
+      <div class="form-group">
+        <label for="postcode">Postleitzahl</label>
+        <input id="postcode" type="text" v-model="form.postcode">
+      </div>
+
+      <div class="form-group">
+        <label for="city">Stadt</label>
+        <input id="city" type="text" v-model="form.city">
+      </div>
+
+      <div class="form-group">
+        <label for="country">Land</label>
+        <input id="country" type="text" v-model="form.country">
+      </div>
+
+      <div class="form-group">
+        <label for="distance">Entfernung (km)</label>
+        <input id="distance" type="number" v-model.number="form.distance" min="0" step="0.1">
       </div>
 
       <div class="form-actions">
