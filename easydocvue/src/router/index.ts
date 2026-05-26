@@ -10,6 +10,8 @@ import EditDoctor from '@/views/EditDoctor.vue'
 import Booking from '@/views/Booking.vue'
 import SlotSelection from '@/views/SlotSelection.vue'
 import BookingConfirmation from '@/views/BookingConfirmation.vue'
+import Profile from '@/views/Profile.vue'
+import MyAppointments from '@/views/MyAppointments.vue'
 
 const routes = [
   { path: '/', component: Home },
@@ -26,6 +28,8 @@ const routes = [
   { path: '/booking/:id', name: 'booking', component: Booking },
   { path: '/slot-selection', component: SlotSelection },
   { path: '/booking-confirmation', component: BookingConfirmation },
+  { path: '/profile', name: 'profile', component: Profile, beforeEnter: authGuard },
+  { path: '/my-bookings', name: 'my-bookings', component: MyAppointments, beforeEnter: authGuard },
 ]
 
 const router = createRouter({

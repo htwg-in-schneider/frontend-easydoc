@@ -1,10 +1,44 @@
 <script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import logo from '@/assets/images/Logo.png'
 import flagge from '@/assets/images/DeutschlandFlagge.png'
 
-const { loginWithRedirect, logout, isAuthenticated } = useAuth0()
-const baseUrl = import.meta.env.BASE_URL
+const { loginWithRedirect, logout, isAuthenticated, user } = useAuth0()
+const isMenuOpen = ref(false)
+const menuRef = ref<HTMLElement | null>(null)
+
+const profilePicture = computed(() => user.value?.picture)
+const fallbackInitial = computed(() => {
+  const name = user.value?.name || user.value?.email || 'U'
+  return name.charAt(0).toUpperCase()
+})
+
+function toggleMenu() {
+  isMenuOpen.value = !isMenuOpen.value
+}
+
+function closeMenu() {
+  isMenuOpen.value = false
+}
+
+function handleLogout() {
+  closeMenu()
+  logout({ logoutParams: { returnTo: window.location.origin + import.meta.env.BASE_URL } })
+}
+
+function onDocumentClick(event: MouseEvent) {
+  if (!menuRef.value || !(event.target instanceof Node)) return
+  if (!menuRef.value.contains(event.target)) closeMenu()
+}
+
+onMounted(() => {
+  document.addEventListener('click', onDocumentClick)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick)
+})
 </script>
 
 <template>
@@ -19,10 +53,29 @@ const baseUrl = import.meta.env.BASE_URL
     </div>
 
     <div class="nav-right">
-      <div class="anmelden">
-        <button v-if="!isAuthenticated" @click="loginWithRedirect()" class="auth-btn">Anmelden</button>
-        <button v-else @click="logout({ logoutParams: { returnTo: window.location.origin + baseUrl } })" class="auth-btn">Abmelden</button>
+      <div v-if="!isAuthenticated" class="anmelden">
+        <button type="button" class="auth-btn" @click="loginWithRedirect()">Anmelden</button>
       </div>
+
+      <div v-else ref="menuRef" class="profile-menu">
+        <button
+          type="button"
+          class="avatar-button"
+          aria-label="Profilmenü"
+          :aria-expanded="isMenuOpen"
+          @click.stop="toggleMenu"
+        >
+          <img v-if="profilePicture" class="avatar-image" :src="profilePicture" alt="Profilbild">
+          <span v-else class="avatar-fallback">{{ fallbackInitial }}</span>
+        </button>
+
+        <div v-if="isMenuOpen" class="profile-dropdown">
+          <router-link class="dropdown-item" to="/profile" @click="closeMenu">Profil</router-link>
+          <router-link class="dropdown-item" to="/my-bookings" @click="closeMenu">Meine Termine</router-link>
+          <button type="button" class="dropdown-item dropdown-button" @click="handleLogout">Abmelden</button>
+        </div>
+      </div>
+
       <div class="sprache">
         <a href="#">
           <img class="flagge" :src="flagge" alt="Sprache">
@@ -102,6 +155,78 @@ const baseUrl = import.meta.env.BASE_URL
   opacity: 0.9;
 }
 
+.profile-menu {
+  position: relative;
+}
+
+.avatar-button {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
+  background: #eef3fb;
+  border: 2px solid #d8e3f7;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.avatar-button:hover {
+  border-color: #155dfc;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-fallback {
+  display: inline-flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: #155dfc;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 20;
+  min-width: 180px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid #d8e3f7;
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(24, 58, 150, 0.18);
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  color: #26334d;
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  text-decoration: none;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.dropdown-item:hover {
+  background: #eef3fb;
+  color: #155dfc;
+}
+
 .flagge {
   height: 30px;
   width: 45px;
@@ -126,7 +251,7 @@ const baseUrl = import.meta.env.BASE_URL
     gap: 16px;
   }
 
-  .anmelden a {
+  .anmelden .auth-btn {
     min-width: 110px;
     height: 38px;
     font-size: 16px;
