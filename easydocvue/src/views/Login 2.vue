@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { useAuth0 } from '@auth0/auth0-vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import logo from '@/assets/images/Logo.png'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
 const router = useRouter()
-const { loginWithRedirect } = useAuth0()
+const email = ref('')
+const password = ref('')
+const role = ref<'arzt' | 'patient'>('arzt')
 
 function handleLogin() {
-  loginWithRedirect()
+  // TODO: implement actual login logic
+  if (role.value === 'arzt') {
+    router.push('/doctors')
+  } else {
+    router.push('/')
+  }
 }
 </script>
 
@@ -26,7 +33,50 @@ function handleLogin() {
 
       <h2 class="login-title">Einloggen</h2>
 
-      <button @click="handleLogin" class="login-submit">Mit Auth0 einloggen</button>
+      <form class="login-form" @submit.prevent="handleLogin">
+        <div class="input-group">
+          <span class="input-icon">✉</span>
+          <input
+            v-model="email"
+            type="email"
+            placeholder="E-Mail-Adresse"
+            required
+          />
+        </div>
+
+        <div class="input-group">
+          <span class="input-icon">🔒</span>
+          <input
+            v-model="password"
+            type="password"
+            placeholder="Passwort"
+            required
+          />
+        </div>
+
+        <div class="role-switch">
+          <button
+            type="button"
+            class="role-btn"
+            :class="{ active: role === 'arzt' }"
+            @click="role = 'arzt'"
+          >
+            <span class="role-icon">👤</span>
+            Arzt
+          </button>
+          <button
+            type="button"
+            class="role-btn"
+            :class="{ active: role === 'patient' }"
+            @click="role = 'patient'"
+          >
+            <span class="role-icon">👤</span>
+            Patient
+          </button>
+        </div>
+
+        <button type="submit" class="login-submit">Einloggen</button>
+      </form>
     </div>
   </div>
   <AppFooter />

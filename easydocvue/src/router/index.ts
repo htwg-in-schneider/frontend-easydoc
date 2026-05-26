@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { authGuard } from '@auth0/auth0-vue'
 import Home from '@/views/Home.vue'
 import Login from '@/views/Login.vue'
 import DoctorCatalog from '@/views/DoctorCatalog.vue'
@@ -20,8 +21,8 @@ const routes = [
     name: 'doctor',
     component: DoctorDetail,
   },
-  { path: '/doctor/create', component: CreateDoctor },
-  { path: '/doctor/edit/:id', name: 'doctor-edit', component: EditDoctor },
+  { path: '/doctor/create', component: CreateDoctor, beforeEnter: authGuard },
+  { path: '/doctor/edit/:id', name: 'doctor-edit', component: EditDoctor, beforeEnter: authGuard },
   { path: '/booking/:id', name: 'booking', component: Booking },
   { path: '/slot-selection', component: SlotSelection },
   { path: '/booking-confirmation', component: BookingConfirmation },

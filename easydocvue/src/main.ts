@@ -25,7 +25,7 @@ const auth0 = createAuth0({
   clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
   authorizationParams: {
     audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-    redirect_uri: window.location.origin,
+    redirect_uri: window.location.origin + import.meta.env.BASE_URL,
   },
 })
 

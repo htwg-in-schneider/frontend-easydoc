@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { useAuth0 } from '@auth0/auth0-vue'
 import logo from '@/assets/images/Logo.png'
 import flagge from '@/assets/images/DeutschlandFlagge.png'
+
+const { loginWithRedirect, logout, isAuthenticated } = useAuth0()
+const baseUrl = import.meta.env.BASE_URL
 </script>
 
 <template>
@@ -16,7 +20,8 @@ import flagge from '@/assets/images/DeutschlandFlagge.png'
 
     <div class="nav-right">
       <div class="anmelden">
-        <router-link to="/login">Anmelden</router-link>
+        <button v-if="!isAuthenticated" @click="loginWithRedirect()" class="auth-btn">Anmelden</button>
+        <button v-else @click="logout({ logoutParams: { returnTo: window.location.origin + baseUrl } })" class="auth-btn">Abmelden</button>
       </div>
       <div class="sprache">
         <a href="#">
@@ -77,7 +82,7 @@ import flagge from '@/assets/images/DeutschlandFlagge.png'
   border-radius: 20px;
 }
 
-.anmelden a {
+.anmelden .auth-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -87,7 +92,14 @@ import flagge from '@/assets/images/DeutschlandFlagge.png'
   color: #ffffff;
   font-size: 18px;
   font-weight: 700;
+  background: none;
+  border: none;
+  cursor: pointer;
   text-decoration: none;
+}
+
+.anmelden .auth-btn:hover {
+  opacity: 0.9;
 }
 
 .flagge {
