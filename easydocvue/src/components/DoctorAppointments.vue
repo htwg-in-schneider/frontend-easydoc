@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useDoctorStore, type Appointment } from '@/stores/doctors'
 import { usePopupStore } from '@/stores/popup'
+import { useProfileStore } from '@/stores/profile'
 
 const props = defineProps<{
   doctorId: number
@@ -14,7 +16,9 @@ const emit = defineEmits<{
 }>()
 
 const doctorStore = useDoctorStore()
+const profileStore = useProfileStore()
 const popup = usePopupStore()
+const { isAdmin } = storeToRefs(profileStore)
 
 const showForm = ref(false)
 const form = ref({
@@ -66,12 +70,12 @@ async function onDelete(id: number) {
   <div class="appointments-section">
     <div class="appointments-header">
       <h3>Termine ({{ appointments.length }})</h3>
-      <button class="btn btn-primary btn-sm" @click="showForm = !showForm">
+      <button v-if="isAdmin" class="btn btn-primary btn-sm" @click="showForm = !showForm">
         {{ showForm ? 'Abbrechen' : '+ Neuer Termin' }}
       </button>
     </div>
 
-    <form v-if="showForm" class="appointment-form" novalidate @submit.prevent="onAdd">
+    <form v-if="isAdmin && showForm" class="appointment-form" novalidate @submit.prevent="onAdd">
       <div class="form-row">
         <input v-model="form.date" type="date" required>
         <input v-model="form.time" type="time" required>
@@ -93,7 +97,7 @@ async function onDelete(id: number) {
           </span>
           <span v-if="appt.price !== null" class="appointment-desc">{{ appt.price }} EUR</span>
         </div>
-        <button class="btn-delete" @click="onDelete(appt.id)">✕</button>
+        <button v-if="isAdmin" class="btn-delete" @click="onDelete(appt.id)">✕</button>
       </div>
     </div>
   </div>

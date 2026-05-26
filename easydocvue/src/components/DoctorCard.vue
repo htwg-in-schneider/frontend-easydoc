@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import type { Doctor } from '@/stores/doctors'
 import { formatDoctorName, getDoctorTypeName } from '@/stores/doctors'
+import { useProfileStore } from '@/stores/profile'
 
 const props = defineProps<{
   doctor: Doctor
 }>()
 
+const profileStore = useProfileStore()
+const { isAdmin } = storeToRefs(profileStore)
 const detailRoute = computed(() => ({ name: 'doctor', params: { id: props.doctor.id } }))
 const editRoute = computed(() => ({ name: 'doctor-edit', params: { id: props.doctor.id } }))
 </script>
@@ -33,7 +37,7 @@ const editRoute = computed(() => ({ name: 'doctor-edit', params: { id: props.doc
       <router-link v-if="doctor.id !== undefined" class="btn btn-primary" :to="detailRoute">
         Details
       </router-link>
-      <router-link v-if="doctor.id !== undefined" class="btn btn-secondary" :to="editRoute">
+      <router-link v-if="isAdmin && doctor.id !== undefined" class="btn btn-secondary" :to="editRoute">
         Bearbeiten
       </router-link>
     </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import {
   formatDoctorName,
@@ -8,14 +9,17 @@ import {
   type Doctor,
   type Appointment,
 } from '@/stores/doctors'
+import { useProfileStore } from '@/stores/profile'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import DoctorAppointments from '@/components/DoctorAppointments.vue'
 
 const route = useRoute()
 const doctorStore = useDoctorStore()
+const profileStore = useProfileStore()
 const doctor = ref<Doctor | null>(null)
 const appointments = ref<Appointment[]>([])
+const { isAdmin } = storeToRefs(profileStore)
 
 function toExternalUrl(url: string | null) {
   if (!url) return ''
@@ -99,7 +103,7 @@ async function onAppointmentDeleted() {
       </div>
 
       <div class="detail-actions">
-        <router-link class="btn btn-primary" :to="{ name: 'doctor-edit', params: { id: doctor.id } }">
+        <router-link v-if="isAdmin" class="btn btn-primary" :to="{ name: 'doctor-edit', params: { id: doctor.id } }">
           Bearbeiten
         </router-link>
         <router-link class="btn btn-secondary" to="/doctors">

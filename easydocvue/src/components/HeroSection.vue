@@ -1,5 +1,18 @@
 <script setup lang="ts">
+import { useAuth0 } from '@auth0/auth0-vue'
+import { useRouter } from 'vue-router'
 import bgImage from '@/assets/images/Background_City.svg'
+
+const router = useRouter()
+const { isAuthenticated, loginWithRedirect } = useAuth0()
+
+async function handleFindDoctor() {
+  if (isAuthenticated.value) {
+    router.push('/doctors/map')
+  } else {
+    await loginWithRedirect()
+  }
+}
 </script>
 
 <template>
@@ -21,7 +34,7 @@ import bgImage from '@/assets/images/Background_City.svg'
       </div>
 
       <div class="arzt-finden">
-        <router-link to="/login">Arzt finden</router-link>
+        <button @click="handleFindDoctor" class="btn-find-doctor">Arzt finden</button>
       </div>
     </div>
   </div>
@@ -96,6 +109,24 @@ import bgImage from '@/assets/images/Background_City.svg'
   text-decoration: none;
   background: #155dfc;
   border-radius: 10px;
+  transition: background 0.3s;
+}
+
+.btn-find-doctor {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 810px;
+  max-width: 90vw;
+  height: 60px;
+  padding: 0 28px;
+  color: #ffffff;
+  font-size: 30px;
+  font-weight: 700;
+  background: #155dfc;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
   transition: background 0.3s;
 }
 

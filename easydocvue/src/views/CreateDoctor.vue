@@ -2,12 +2,14 @@
 import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
+import { useAuth0 } from '@auth0/auth0-vue'
 import { useDoctorStore, type DoctorPayload, type DoctorType } from '@/stores/doctors'
 import { usePopupStore } from '@/stores/popup'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
 const router = useRouter()
+const { getAccessTokenSilently } = useAuth0()
 const doctorStore = useDoctorStore()
 const popup = usePopupStore()
 const { doctorTypes } = storeToRefs(doctorStore)
@@ -62,7 +64,8 @@ async function onCreate() {
     })
     return
   }
-  await doctorStore.add(toDoctorPayload())
+  const token = await getAccessTokenSilently()
+  await doctorStore.add(toDoctorPayload(), token)
   await popup.showMessage({
     title: 'Arzt erstellt',
     message: 'Arzt erfolgreich erstellt.',

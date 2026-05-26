@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
+import { storeToRefs } from 'pinia'
+import { useProfileStore } from '@/stores/profile'
 import logo from '@/assets/images/Logo.png'
 import flagge from '@/assets/images/DeutschlandFlagge.png'
 
-const { loginWithRedirect, logout, isAuthenticated, user } = useAuth0()
+const { loginWithRedirect, logout, isAuthenticated, user, getAccessTokenSilently } = useAuth0()
+const profileStore = useProfileStore()
+const { isAdmin, isDoctor, isVisitor } = storeToRefs(profileStore)
 const isMenuOpen = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
 
@@ -22,8 +26,13 @@ function closeMenu() {
   isMenuOpen.value = false
 }
 
+function handleLogin() {
+  loginWithRedirect({ appState: { target: '/auth/redirect' } })
+}
+
 function handleLogout() {
   closeMenu()
+  profileStore.clear()
   logout({ logoutParams: { returnTo: window.location.origin + import.meta.env.BASE_URL } })
 }
 
@@ -39,6 +48,20 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick)
 })
+
+watch(isAuthenticated, async (authenticated) => {
+  if (!authenticated) {
+    profileStore.clear()
+    return
+  }
+
+  try {
+    const token = await getAccessTokenSilently()
+    await profileStore.load(token)
+  } catch (error) {
+    console.error('Profile loading failed', error)
+  }
+}, { immediate: true })
 </script>
 
 <template>
@@ -49,12 +72,14 @@ onBeforeUnmount(() => {
 
     <div class="nav-links">
       <router-link class="nav-link" to="/">Startseite</router-link>
-      <router-link class="nav-link" to="/doctors">Ärzte</router-link>
+      <router-link v-if="!isVisitor && !isDoctor" class="nav-link" to="/doctors">Ärzte</router-link>
+      <router-link v-if="isDoctor" class="nav-link" to="/doctor/dashboard">Dashboard</router-link>
+      <router-link v-if="isVisitor" class="nav-link" to="/symptom-analysis">Symptomanalyse</router-link>
     </div>
 
     <div class="nav-right">
       <div v-if="!isAuthenticated" class="anmelden">
-        <button type="button" class="auth-btn" @click="loginWithRedirect()">Anmelden</button>
+        <button type="button" class="auth-btn" @click="handleLogin">Anmelden</button>
       </div>
 
       <div v-else ref="menuRef" class="profile-menu">
@@ -71,7 +96,9 @@ onBeforeUnmount(() => {
 
         <div v-if="isMenuOpen" class="profile-dropdown">
           <router-link class="dropdown-item" to="/profile" @click="closeMenu">Profil</router-link>
-          <router-link class="dropdown-item" to="/my-bookings" @click="closeMenu">Meine Termine</router-link>
+          <router-link v-if="isAdmin" class="dropdown-item" to="/admin/users" @click="closeMenu">Benutzerverwaltung</router-link>
+          <router-link v-if="isDoctor" class="dropdown-item" to="/doctor/dashboard" @click="closeMenu">Arzt-Dashboard</router-link>
+          <router-link v-if="!isVisitor" class="dropdown-item" to="/my-bookings" @click="closeMenu">Meine Termine</router-link>
           <button type="button" class="dropdown-item dropdown-button" @click="handleLogout">Abmelden</button>
         </div>
       </div>

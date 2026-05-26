@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-const API_BASE = 'http://localhost:8080/api'
+const API_BASE = `${(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')}/api`
 
 export interface DoctorType {
   id: number
@@ -62,6 +62,13 @@ async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
     throw new Error(`Request failed: ${res.status} ${res.statusText}`)
   }
   return await res.json()
+}
+
+function jsonHeaders(token?: string) {
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
 }
 
 function matchesDoctorType(doctor: Doctor, doctorTypeFilter?: string) {
@@ -128,24 +135,27 @@ export const useDoctorStore = defineStore('doctors', () => {
     return await res.json()
   }
 
-  async function add(doctor: DoctorPayload) {
+  async function add(doctor: DoctorPayload, token?: string) {
     await requestJson<Doctor>(`${API_BASE}/doctors`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(token),
       body: JSON.stringify(doctor),
     })
   }
 
-  async function update(id: number, data: DoctorPayload) {
+  async function update(id: number, data: DoctorPayload, token?: string) {
     await requestJson<Doctor>(`${API_BASE}/doctors/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(token),
       body: JSON.stringify(data),
     })
   }
 
-  async function remove(id: number) {
-    await fetch(`${API_BASE}/doctors/${id}`, { method: 'DELETE' })
+  async function remove(id: number, token?: string) {
+    await fetch(`${API_BASE}/doctors/${id}`, {
+      method: 'DELETE',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
   }
 
   async function getAppointments(doctorId: number): Promise<Appointment[]> {

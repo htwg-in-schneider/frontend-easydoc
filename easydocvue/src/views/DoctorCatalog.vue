@@ -2,13 +2,16 @@
 import { onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useDoctorStore, type DoctorSearchFilters } from '@/stores/doctors'
+import { useProfileStore } from '@/stores/profile'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import DoctorCard from '@/components/DoctorCard.vue'
 import DoctorFilter from '@/components/DoctorFilter.vue'
 
 const doctorStore = useDoctorStore()
+const profileStore = useProfileStore()
 const { doctors } = storeToRefs(doctorStore)
+const { isAdmin } = storeToRefs(profileStore)
 
 onMounted(async () => {
   try {
@@ -44,7 +47,7 @@ async function onFilter(filters: DoctorSearchFilters) {
       <router-link class="btn btn-map" to="/doctors/map">
         🗺️ Kartenansicht
       </router-link>
-      <router-link class="btn btn-primary" to="/doctor/create">
+      <router-link v-if="isAdmin" class="btn btn-primary" to="/doctor/create">
         + Neuer Arzt
       </router-link>
     </div>

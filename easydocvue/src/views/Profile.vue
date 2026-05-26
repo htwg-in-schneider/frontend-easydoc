@@ -1,27 +1,14 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
+import { storeToRefs } from 'pinia'
+import { useProfileStore } from '@/stores/profile'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
-interface BackendProfile {
-  id?: number | null
-  name?: string | null
-  firstName?: string | null
-  lastName?: string | null
-  email?: string | null
-  role?: string | null
-  oauthId?: string | null
-  insurance?: string | null
-  status?: string | null
-  age?: number | null
-}
-
 const { isAuthenticated, getAccessTokenSilently } = useAuth0()
-
-const profile = ref<BackendProfile | null>(null)
-const profileMessage = ref('Backend-Profil wird geladen')
-const isLoadingBackendProfile = ref(false)
+const profileStore = useProfileStore()
+const { profile, isLoading, errorMessage } = storeToRefs(profileStore)
 
 const displayName = computed(() => {
   const firstName = profile.value?.firstName?.trim()
@@ -39,39 +26,15 @@ function displayValue(value: string | number | null | undefined) {
   return value === null || value === undefined || value === '' ? 'Nicht hinterlegt' : value
 }
 
+const profileMessage = computed(() => {
+  if (isLoading.value) return 'Backend-Profil wird geladen'
+  return errorMessage.value || 'Kein Backend-Profil gefunden'
+})
+
 async function loadBackendProfile() {
-  if (!isAuthenticated.value || isLoadingBackendProfile.value) return
-
-  isLoadingBackendProfile.value = true
-  profileMessage.value = 'Backend-Profil wird geladen'
-
-  try {
-    const token = await getAccessTokenSilently()
-    const apiBase = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
-    const response = await fetch(`${apiBase}/api/profile`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-
-    if (response.status === 404) {
-      profile.value = null
-      profileMessage.value = 'Kein Backend-Profil gefunden'
-      return
-    }
-
-    if (!response.ok) {
-      throw new Error(`Profile request failed: ${response.status}`)
-    }
-
-    profile.value = await response.json() as BackendProfile
-    profileMessage.value = ''
-  } catch {
-    profile.value = null
-    profileMessage.value = 'Backend-Profil konnte nicht geladen werden'
-  } finally {
-    isLoadingBackendProfile.value = false
-  }
+  if (!isAuthenticated.value) return
+  const token = await getAccessTokenSilently()
+  await profileStore.load(token)
 }
 
 watch(isAuthenticated, (authenticated) => {
@@ -87,7 +50,7 @@ watch(isAuthenticated, (authenticated) => {
         <div class="profile-fallback">{{ fallbackInitial }}</div>
 
         <div>
-          <h1>Profil</h1>
+          <h1>{{ profile ? displayName : 'Profil wird geladen' }}</h1>
           <p>{{ profile ? displayName : profileMessage }}</p>
         </div>
       </div>
@@ -108,10 +71,6 @@ watch(isAuthenticated, (authenticated) => {
         <div>
           <dt>Rolle</dt>
           <dd>{{ displayValue(profile.role) }}</dd>
-        </div>
-        <div>
-          <dt>OAuth ID</dt>
-          <dd class="mono">{{ displayValue(profile.oauthId) }}</dd>
         </div>
         <div>
           <dt>Versicherung</dt>
@@ -209,11 +168,6 @@ watch(isAuthenticated, (authenticated) => {
   margin: 0;
   color: #1f2a44;
   overflow-wrap: anywhere;
-}
-
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 14px;
 }
 
 .profile-message {

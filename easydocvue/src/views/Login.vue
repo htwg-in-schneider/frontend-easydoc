@@ -9,7 +9,7 @@ const router = useRouter()
 const { loginWithRedirect } = useAuth0()
 
 function handleLogin() {
-  loginWithRedirect()
+  loginWithRedirect({ appState: { target: '/auth/redirect' } })
 }
 </script>
 

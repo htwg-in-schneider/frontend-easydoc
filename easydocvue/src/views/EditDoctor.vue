@@ -2,16 +2,21 @@
 import { ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuth0 } from '@auth0/auth0-vue'
 import { useDoctorStore, type DoctorPayload, type DoctorType } from '@/stores/doctors'
 import { usePopupStore } from '@/stores/popup'
+import { useProfileStore } from '@/stores/profile'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { getAccessTokenSilently } = useAuth0()
 const doctorStore = useDoctorStore()
+const profileStore = useProfileStore()
 const popup = usePopupStore()
 const { doctorTypes } = storeToRefs(doctorStore)
+const { isAdmin } = storeToRefs(profileStore)
 
 type DoctorForm = Omit<DoctorPayload, 'doctorType'>
 
@@ -52,6 +57,8 @@ onMounted(async () => {
   }
 
   try {
+    const token = await getAccessTokenSilently()
+    await profileStore.load(token)
     await doctorStore.fetchDoctorTypes()
   } catch (error) {
     console.error('Doctor type loading failed', error)
@@ -109,7 +116,8 @@ async function onUpdate() {
     })
     return
   }
-  await doctorStore.update(doctorId.value, toDoctorPayload())
+  const token = await getAccessTokenSilently()
+  await doctorStore.update(doctorId.value, toDoctorPayload(), token)
   await popup.showMessage({
     title: 'Arzt aktualisiert',
     message: 'Arzt erfolgreich aktualisiert.',
@@ -127,7 +135,8 @@ async function onDelete() {
   })
 
   if (!confirmed) return
-  await doctorStore.remove(doctorId.value)
+  const token = await getAccessTokenSilently()
+  await doctorStore.remove(doctorId.value, token)
   await popup.showMessage({
     title: 'Arzt gelöscht',
     message: 'Arzt erfolgreich gelöscht.',
@@ -231,7 +240,7 @@ async function onDelete() {
 
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">Aktualisieren</button>
-        <button type="button" class="btn btn-danger" @click="onDelete">Löschen</button>
+        <button v-if="isAdmin" type="button" class="btn btn-danger" @click="onDelete">Löschen</button>
         <router-link class="btn btn-secondary" to="/doctors">Abbrechen</router-link>
       </div>
     </form>

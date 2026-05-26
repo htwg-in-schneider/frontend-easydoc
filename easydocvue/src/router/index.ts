@@ -12,10 +12,15 @@ import SlotSelection from '@/views/SlotSelection.vue'
 import BookingConfirmation from '@/views/BookingConfirmation.vue'
 import Profile from '@/views/Profile.vue'
 import MyAppointments from '@/views/MyAppointments.vue'
+import AdminUsers from '@/views/AdminUsers.vue'
+import DoctorDashboard from '@/views/DoctorDashboard.vue'
+import SymptomAnalysis from '@/views/SymptomAnalysis.vue'
+import RoleRedirect from '@/views/RoleRedirect.vue'
 
 const routes = [
   { path: '/', component: Home },
   { path: '/login', component: Login },
+  { path: '/auth/redirect', component: RoleRedirect },
   { path: '/doctors', component: DoctorCatalog },
   { path: '/doctors/map', component: MapDoctors },
   {
@@ -30,6 +35,9 @@ const routes = [
   { path: '/booking-confirmation', component: BookingConfirmation },
   { path: '/profile', name: 'profile', component: Profile, beforeEnter: authGuard },
   { path: '/my-bookings', name: 'my-bookings', component: MyAppointments, beforeEnter: authGuard },
+  { path: '/admin/users', name: 'admin-users', component: AdminUsers, beforeEnter: authGuard },
+  { path: '/doctor/dashboard', name: 'doctor-dashboard', component: DoctorDashboard, beforeEnter: authGuard },
+  { path: '/symptom-analysis', name: 'symptom-analysis', component: SymptomAnalysis, beforeEnter: authGuard },
 ]
 
 const router = createRouter({
