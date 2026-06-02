@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
-export type UserRole = 'VISITOR' | 'USER' | 'DOCTOR' | 'ADMIN'
+export type UserRole = 'USER' | 'DOCTOR' | 'ADMIN'
 
 export interface BackendProfile {
   id?: number | null
@@ -21,7 +21,6 @@ export const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:
 export function roleRedirectPath(role?: UserRole | null) {
   if (role === 'ADMIN') return '/admin/users'
   if (role === 'DOCTOR') return '/doctor/dashboard'
-  if (role === 'VISITOR') return '/symptom-analysis'
   return '/doctors'
 }
 
@@ -33,7 +32,6 @@ export const useProfileStore = defineStore('profile', () => {
   const role = computed(() => profile.value?.role ?? null)
   const isAdmin = computed(() => role.value === 'ADMIN')
   const isDoctor = computed(() => role.value === 'DOCTOR')
-  const isVisitor = computed(() => role.value === 'VISITOR')
 
   async function load(token: string, force = false) {
     if (profile.value && !force) return profile.value
@@ -78,7 +76,6 @@ export const useProfileStore = defineStore('profile', () => {
     role,
     isAdmin,
     isDoctor,
-    isVisitor,
     load,
     clear,
   }

@@ -37,7 +37,8 @@ const routes = [
   { path: '/my-bookings', name: 'my-bookings', component: MyAppointments, beforeEnter: authGuard },
   { path: '/admin/users', name: 'admin-users', component: AdminUsers, beforeEnter: authGuard },
   { path: '/doctor/dashboard', name: 'doctor-dashboard', component: DoctorDashboard, beforeEnter: authGuard },
-  { path: '/symptom-analysis', name: 'symptom-analysis', component: SymptomAnalysis, beforeEnter: authGuard },
+  { path: '/symptom-analysis', name: 'symptom-analysis', component: SymptomAnalysis },
+  { path: '/benutzerverwaltung', name: 'benutzerverwaltung', component: AdminUsers, beforeEnter: authGuard },
 ]
 
 const router = createRouter({

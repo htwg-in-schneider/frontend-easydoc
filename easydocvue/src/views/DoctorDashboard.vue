@@ -7,7 +7,7 @@ import AppFooter from '@/components/AppFooter.vue'
   <NavBar />
   <main class="dashboard-page">
     <section class="dashboard-card">
-      <h1>Arzt-Dashboard</h1>
+      <h1>Kalender</h1>
       <p>Hier können später Kalender und Slots synchronisiert werden.</p>
       <button type="button" class="btn btn-primary">Kalender synchronisieren</button>
     </section>

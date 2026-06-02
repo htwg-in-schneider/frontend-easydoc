@@ -6,7 +6,7 @@ import { API_BASE, roleRedirectPath, useProfileStore, type BackendProfile, type 
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
-const roles: UserRole[] = ['VISITOR', 'USER', 'DOCTOR', 'ADMIN']
+const roles: UserRole[] = ['USER', 'DOCTOR', 'ADMIN']
 
 const router = useRouter()
 const { getAccessTokenSilently } = useAuth0()
@@ -111,7 +111,7 @@ onMounted(loadUsers)
   <section class="admin-header">
     <div class="container">
       <h1>Benutzerverwaltung</h1>
-      <p>Lokale APP_USER Profile und Rollen verwalten.</p>
+      <p>Profile und Rollen verwalten.</p>
     </div>
   </section>
 

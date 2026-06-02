@@ -8,7 +8,7 @@ import flagge from '@/assets/images/DeutschlandFlagge.png'
 
 const { loginWithRedirect, logout, isAuthenticated, user, getAccessTokenSilently } = useAuth0()
 const profileStore = useProfileStore()
-const { isAdmin, isDoctor, isVisitor } = storeToRefs(profileStore)
+const { isAdmin, isDoctor } = storeToRefs(profileStore)
 const isMenuOpen = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
 
@@ -72,9 +72,10 @@ watch(isAuthenticated, async (authenticated) => {
 
     <div class="nav-links">
       <router-link class="nav-link" to="/">Startseite</router-link>
-      <router-link v-if="!isVisitor && !isDoctor" class="nav-link" to="/doctors">Ärzte</router-link>
-      <router-link v-if="isDoctor" class="nav-link" to="/doctor/dashboard">Dashboard</router-link>
-      <router-link v-if="isVisitor" class="nav-link" to="/symptom-analysis">Symptomanalyse</router-link>
+      <router-link v-if="isAdmin" class="nav-link" to="/doctors">Ärzte</router-link>
+      <router-link v-if="isAdmin" class="nav-link" to="/Benutzerverwaltung">Benutzer</router-link>
+      <router-link v-if="isDoctor" class="nav-link" to="/doctor/dashboard">Kalender</router-link>
+      <router-link class="nav-link" to="/symptom-analysis">Symptomanalyse</router-link>
     </div>
 
     <div class="nav-right">
@@ -96,9 +97,9 @@ watch(isAuthenticated, async (authenticated) => {
 
         <div v-if="isMenuOpen" class="profile-dropdown">
           <router-link class="dropdown-item" to="/profile" @click="closeMenu">Profil</router-link>
-          <router-link v-if="isAdmin" class="dropdown-item" to="/admin/users" @click="closeMenu">Benutzerverwaltung</router-link>
-          <router-link v-if="isDoctor" class="dropdown-item" to="/doctor/dashboard" @click="closeMenu">Arzt-Dashboard</router-link>
-          <router-link v-if="!isVisitor" class="dropdown-item" to="/my-bookings" @click="closeMenu">Meine Termine</router-link>
+          <router-link v-if="isAdmin" class="dropdown-item" to="/Benutzerverwaltung" @click="closeMenu">Benutzer</router-link>
+          <router-link v-if="isDoctor" class="dropdown-item" to="/doctor/dashboard" @click="closeMenu">Kalender</router-link>
+          <router-link v-if="!isDoctor" class="dropdown-item" to="/my-bookings" @click="closeMenu">Meine Termine</router-link>
           <button type="button" class="dropdown-item dropdown-button" @click="handleLogout">Abmelden</button>
         </div>
       </div>
