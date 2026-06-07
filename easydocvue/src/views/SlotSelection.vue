@@ -1,10 +1,12 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router'; // 1. useRouter importieren
+import { useAuth0 } from '@auth0/auth0-vue';
 import NavBar from '@/components/NavBar.vue';
 import AppFooter from '@/components/AppFooter.vue';
 
 const router = useRouter(); // 2. Router-Instanz holen
+const { isAuthenticated, loginWithRedirect } = useAuth0();
 
 // Statische Daten, die normalerweise vom Backend oder aus dem Router-State kommen würden
 const doctor = ref({
@@ -25,7 +27,12 @@ const timeSlots = ref([
   '16:00', '16:30', '17:00', '17:30',
 ]);
 
-const confirmAppointment = () => {
+const confirmAppointment = async () => {
+  if (!isAuthenticated.value) {
+    await loginWithRedirect({ appState: { target: router.currentRoute.value.fullPath } });
+    return;
+  }
+
   // Hier würde die finale POST-Anfrage an das Backend gesendet werden
   console.log('Sende finale Buchung an das Backend...');
 

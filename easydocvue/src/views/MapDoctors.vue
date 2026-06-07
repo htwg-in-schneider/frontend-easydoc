@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, nextTick, computed } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useDoctorStore, formatDoctorName, getDoctorTypeName } from '@/stores/doctors'
 import type { Doctor } from '@/stores/doctors'
 import NavBar from '@/components/NavBar.vue'
@@ -10,6 +10,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 const router = useRouter()
+const route = useRoute()
 const doctorStore = useDoctorStore()
 const { doctors } = storeToRefs(doctorStore)
 
@@ -23,8 +24,17 @@ const defaultCenter: [number, number] = [47.6725, 9.1732]
 
 // Filtered and sorted: max 5km distance, highest rating first
 const filteredDoctors = computed(() => {
+  const doctorType = String(route.query.doctorType || '').trim().toLowerCase()
+  const city = String(route.query.city || '').trim().toLowerCase()
+
   return doctors.value
     .filter(d => d.distance !== null && d.distance <= 5)
+    .filter((d) => {
+      const typeName = getDoctorTypeName(d.doctorType).toLowerCase()
+      const matchesType = !doctorType || typeName === doctorType
+      const matchesCity = !city || (d.city || '').toLowerCase() === city
+      return matchesType && matchesCity
+    })
     .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
 })
 
