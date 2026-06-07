@@ -20,7 +20,7 @@ export const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:
 
 export function roleRedirectPath(role?: UserRole | null) {
   if (role === 'ADMIN') return '/admin/users'
-  if (role === 'DOCTOR') return '/doctor/dashboard'
+  if (role === 'DOCTOR') return '/my-bookings'
   return '/doctors'
 }
 

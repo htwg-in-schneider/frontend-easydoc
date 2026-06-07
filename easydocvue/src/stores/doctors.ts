@@ -36,12 +36,22 @@ export interface UserSummary {
   lastName: string | null
 }
 
+export interface AppointmentDoctor {
+  id: number
+  title?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  practiceName?: string | null
+  city?: string | null
+  doctorType?: DoctorType | null
+}
+
 export interface Appointment {
   id: number
   date: string
   time: string | null
   price: number | null
-  doctor?: { id: number } | null
+  doctor?: AppointmentDoctor | null
   user?: UserSummary | null
 }
 
@@ -163,6 +173,13 @@ export const useDoctorStore = defineStore('doctors', () => {
     return Array.isArray(data) ? data : []
   }
 
+  async function getMyAppointments(token: string): Promise<Appointment[]> {
+    const data = await requestJson<Appointment[]>(`${API_BASE}/appointments/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return Array.isArray(data) ? data : []
+  }
+
   async function addAppointment(appointment: AppointmentPayload) {
     await requestJson<Appointment>(`${API_BASE}/appointments`, {
       method: 'POST',
@@ -186,6 +203,7 @@ export const useDoctorStore = defineStore('doctors', () => {
     remove,
     search,
     getAppointments,
+    getMyAppointments,
     addAppointment,
     removeAppointment,
   }

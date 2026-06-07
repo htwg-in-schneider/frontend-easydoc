@@ -75,6 +75,7 @@ watch(isAuthenticated, async (authenticated) => {
       <router-link v-if="isAdmin" class="nav-link" to="/doctors">Ärzte</router-link>
       <router-link v-if="isAdmin" class="nav-link" to="/Benutzerverwaltung">Benutzer</router-link>
       <router-link v-if="isDoctor" class="nav-link" to="/doctor/dashboard">Kalender</router-link>
+      <router-link v-if="isDoctor" class="nav-link" to="/my-bookings">Meine Termine</router-link>
       <router-link class="nav-link" to="/symptom-analysis">Symptomanalyse</router-link>
     </div>
 
@@ -99,7 +100,7 @@ watch(isAuthenticated, async (authenticated) => {
           <router-link class="dropdown-item" to="/profile" @click="closeMenu">Profil</router-link>
           <router-link v-if="isAdmin" class="dropdown-item" to="/Benutzerverwaltung" @click="closeMenu">Benutzer</router-link>
           <router-link v-if="isDoctor" class="dropdown-item" to="/doctor/dashboard" @click="closeMenu">Kalender</router-link>
-          <router-link v-if="!isDoctor" class="dropdown-item" to="/my-bookings" @click="closeMenu">Meine Termine</router-link>
+          <router-link v-if="!isAdmin" class="dropdown-item" to="/my-bookings" @click="closeMenu">Meine Termine</router-link>
           <button type="button" class="dropdown-item dropdown-button" @click="handleLogout">Abmelden</button>
         </div>
       </div>
