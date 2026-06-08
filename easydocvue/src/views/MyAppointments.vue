@@ -2,19 +2,22 @@
 import { computed, ref, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { storeToRefs } from 'pinia'
-import { useDoctorStore, type Appointment } from '@/stores/doctors'
+import { useDoctorStore, formatDoctorName, getDoctorTypeName, type Appointment, type Doctor } from '@/stores/doctors'
 import { useProfileStore } from '@/stores/profile'
+import { usePopupStore } from '@/stores/popup'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
 const { isAuthenticated, getAccessTokenSilently } = useAuth0()
 const doctorStore = useDoctorStore()
 const profileStore = useProfileStore()
+const popup = usePopupStore()
 const { profile, isLoading: isProfileLoading } = storeToRefs(profileStore)
 
 const appointments = ref<Appointment[]>([])
 const isAppointmentsLoading = ref(false)
 const errorMessage = ref('')
+const expandedAppointmentId = ref<number | null>(null)
 
 const isAdmin = computed(() => profile.value?.role === 'ADMIN')
 const isDoctor = computed(() => profile.value?.role === 'DOCTOR')
@@ -24,14 +27,18 @@ const emptyMessage = computed(() =>
   isAdmin.value ? 'Keine bevorstehenden Termine.' : isDoctor.value ? 'Keine bevorstehenden Patiententermine.' : 'Keine bevorstehenden Termine.',
 )
 
+function doctor(appointment: Appointment): Doctor | null {
+  return appointment.doctor ?? null
+}
+
 function userName(appointment: Appointment) {
   const user = appointment.user
   return [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Patient unbekannt'
 }
 
 function doctorName(appointment: Appointment) {
-  const doctor = appointment.doctor
-  return [doctor?.title, doctor?.firstName, doctor?.lastName].filter(Boolean).join(' ') || 'Arzt unbekannt'
+  const currentDoctor = doctor(appointment)
+  return currentDoctor ? formatDoctorName(currentDoctor) || 'Arzt unbekannt' : 'Arzt unbekannt'
 }
 
 function primaryName(appointment: Appointment) {
@@ -46,6 +53,37 @@ function appointmentDetails(appointment: Appointment) {
     return [doctor, patient ? `Patient: ${patient}` : ''].filter(Boolean).join(' | ')
   }
   return [appointment.doctor?.practiceName, appointment.doctor?.city].filter(Boolean).join(' - ')
+}
+
+function doctorAddress(appointment: Appointment) {
+  const currentDoctor = doctor(appointment)
+  if (!currentDoctor) return 'Adresse nicht hinterlegt'
+
+  return [currentDoctor.street, currentDoctor.postcode, currentDoctor.city, currentDoctor.country]
+    .filter(Boolean)
+    .join(', ')
+}
+
+function doctorContact(appointment: Appointment) {
+  const currentDoctor = doctor(appointment)
+  if (!currentDoctor) return 'Kontakt nicht hinterlegt'
+
+  return [currentDoctor.phoneNumber, currentDoctor.email].filter(Boolean).join(' · ') || 'Kontakt nicht hinterlegt'
+}
+
+function isExpanded(appointmentId: number) {
+  return expandedAppointmentId.value === appointmentId
+}
+
+function toggleAppointment(appointmentId: number) {
+  expandedAppointmentId.value = expandedAppointmentId.value === appointmentId ? null : appointmentId
+}
+
+function canCancel(appointment: Appointment) {
+  if (isAdmin.value) return true
+  if (!profile.value?.id) return false
+  if (isDoctor.value) return appointment.doctor?.id === profile.value.id
+  return appointment.user?.id === profile.value.id
 }
 
 function formatDate(date: string) {
@@ -66,6 +104,30 @@ function formatPrice(price: number | null) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(price)
 }
 
+async function onDelete(appointment: Appointment) {
+  const confirmed = await popup.showConfirmation({
+    title: 'Termin stornieren',
+    message: 'Möchten Sie diesen Termin wirklich stornieren?',
+    confirmLabel: 'Stornieren',
+    variant: 'danger',
+  })
+
+  if (!confirmed) return
+
+  try {
+    const token = await getAccessTokenSilently()
+    await doctorStore.removeAppointment(appointment.id, token)
+    expandedAppointmentId.value = null
+    await loadAppointments()
+  } catch (error) {
+    await popup.showMessage({
+      title: 'Stornierung fehlgeschlagen',
+      message: error instanceof Error ? error.message : 'Der Termin konnte nicht storniert werden.',
+      variant: 'danger',
+    })
+  }
+}
+
 async function loadAppointments() {
   if (!isAuthenticated.value) return
 
@@ -74,7 +136,7 @@ async function loadAppointments() {
 
   try {
     const token = await getAccessTokenSilently()
-    await profileStore.load(token)
+    await profileStore.load(token, true)
     appointments.value = await doctorStore.getMyAppointments(token)
   } catch (error) {
     appointments.value = []
@@ -109,20 +171,81 @@ watch(isAuthenticated, (authenticated) => {
       <p v-else-if="appointments.length === 0" class="appointments-message">{{ emptyMessage }}</p>
 
       <div v-else class="appointments-list">
-        <article v-for="appointment in appointments" :key="appointment.id" class="appointment-card">
-          <div class="appointment-date">
-            <span>{{ formatDate(appointment.date) }}</span>
-            <strong>{{ formatTime(appointment.time) }}</strong>
+        <article
+          v-for="appointment in appointments"
+          :key="appointment.id"
+          class="appointment-card"
+          :class="{ 'is-expanded': isExpanded(appointment.id) }"
+          role="button"
+          tabindex="0"
+          :aria-expanded="isExpanded(appointment.id)"
+          @click="toggleAppointment(appointment.id)"
+          @keydown.enter.self.prevent="toggleAppointment(appointment.id)"
+          @keydown.space.self.prevent="toggleAppointment(appointment.id)"
+        >
+          <div class="appointment-summary">
+            <div class="appointment-date">
+              <span>{{ formatDate(appointment.date) }}</span>
+              <strong>{{ formatTime(appointment.time) }}</strong>
+            </div>
+
+            <div class="appointment-info">
+              <h2>{{ primaryName(appointment) }}</h2>
+              <p>{{ appointmentDetails(appointment) }}</p>
+            </div>
+
+            <span v-if="formatPrice(appointment.price)" class="appointment-price">
+              {{ formatPrice(appointment.price) }}
+            </span>
+
+            <v-icon class="appointment-chevron" size="20">
+              {{ isExpanded(appointment.id) ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+            </v-icon>
           </div>
 
-          <div class="appointment-info">
-            <h2>{{ primaryName(appointment) }}</h2>
-            <p>{{ appointmentDetails(appointment) }}</p>
-          </div>
+          <div v-if="isExpanded(appointment.id)" class="appointment-expanded" @click.stop>
+            <div class="appointment-expanded-grid">
+              <div class="appointment-detail">
+                <span class="detail-label">Arzt</span>
+                <strong>{{ doctorName(appointment) }}</strong>
+                <span v-if="appointment.doctor?.practiceName">{{ appointment.doctor.practiceName }}</span>
+                <span v-if="appointment.doctor?.doctorType?.name">{{ getDoctorTypeName(appointment.doctor.doctorType) }}</span>
+              </div>
 
-          <span v-if="formatPrice(appointment.price)" class="appointment-price">
-            {{ formatPrice(appointment.price) }}
-          </span>
+              <div class="appointment-detail">
+                <span class="detail-label">Adresse</span>
+                <span>{{ doctorAddress(appointment) }}</span>
+                <span v-if="appointment.doctor?.distance !== null && appointment.doctor?.distance !== undefined">
+                  {{ appointment.doctor.distance }} km entfernt
+                </span>
+              </div>
+
+              <div class="appointment-detail">
+                <span class="detail-label">Kontakt</span>
+                <span>{{ doctorContact(appointment) }}</span>
+                <span v-if="appointment.doctor?.website">{{ appointment.doctor.website }}</span>
+              </div>
+
+              <div class="appointment-detail">
+                <span class="detail-label">Termin</span>
+                <span>{{ formatDate(appointment.date) }}</span>
+                <span>{{ formatTime(appointment.time) }}</span>
+                <span v-if="formatPrice(appointment.price)">{{ formatPrice(appointment.price) }}</span>
+                <span v-if="isAdmin || isDoctor">Patient: {{ userName(appointment) }}</span>
+              </div>
+            </div>
+
+            <div class="appointment-actions">
+              <button
+                v-if="canCancel(appointment)"
+                type="button"
+                class="btn-cancel"
+                @click.stop="onDelete(appointment)"
+              >
+                Termin stornieren
+              </button>
+            </div>
+          </div>
         </article>
       </div>
     </section>
@@ -185,11 +308,29 @@ watch(isAuthenticated, (authenticated) => {
 
 .appointment-card {
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid #d8e3f7;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  outline: none;
+}
+
+.appointment-card:hover,
+.appointment-card:focus-visible {
+  transform: translateY(-1px);
+  border-color: #155dfc;
+  box-shadow: 0 10px 24px rgba(21, 93, 252, 0.12);
+}
+
+.appointment-summary {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto auto;
   gap: 18px;
   align-items: center;
-  padding: 16px 0;
-  border-top: 1px solid #edf1f8;
 }
 
 .appointment-date {
@@ -224,6 +365,63 @@ watch(isAuthenticated, (authenticated) => {
   font-weight: 700;
 }
 
+.appointment-chevron {
+  color: #155dfc;
+}
+
+.appointment-expanded {
+  display: grid;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #edf1f8;
+}
+
+.appointment-expanded-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.appointment-detail {
+  display: grid;
+  gap: 4px;
+  color: #1f2a44;
+  font-size: 14px;
+}
+
+.detail-label {
+  color: #64708a;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.appointment-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 168px;
+  height: 42px;
+  padding: 0 18px;
+  color: #fff;
+  background: #dc3545;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-cancel:hover {
+  background: #b02a37;
+}
+
 @media (max-width: 640px) {
   .appointments-panel {
     padding: 24px;
@@ -234,9 +432,13 @@ watch(isAuthenticated, (authenticated) => {
     align-items: flex-start;
   }
 
-  .appointment-card {
+  .appointment-summary,
+  .appointment-expanded-grid {
     grid-template-columns: 1fr;
-    gap: 8px;
+  }
+
+  .appointment-card {
+    gap: 12px;
   }
 }
 </style>

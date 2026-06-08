@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import type { Doctor } from '@/stores/doctors'
 import { formatDoctorName, getDoctorTypeName } from '@/stores/doctors'
@@ -9,14 +10,29 @@ const props = defineProps<{
   doctor: Doctor
 }>()
 
+const router = useRouter()
 const profileStore = useProfileStore()
 const { isAdmin } = storeToRefs(profileStore)
 const detailRoute = computed(() => ({ name: 'doctor', params: { id: props.doctor.id } }))
 const editRoute = computed(() => ({ name: 'doctor-edit', params: { id: props.doctor.id } }))
+
+function openDetail() {
+  if (props.doctor.id !== undefined) {
+    router.push(detailRoute.value)
+  }
+}
 </script>
 
 <template>
-  <div class="doctor-card">
+  <article
+    class="doctor-card"
+    role="link"
+    tabindex="0"
+    :aria-label="`Details für ${formatDoctorName(doctor)}`"
+    @click="openDetail"
+    @keydown.enter.self.prevent="openDetail"
+    @keydown.space.self.prevent="openDetail"
+  >
     <div class="card-icon">
       <v-icon size="48" color="#155dfc">mdi-doctor</v-icon>
     </div>
@@ -34,14 +50,11 @@ const editRoute = computed(() => ({ name: 'doctor-edit', params: { id: props.doc
       </span>
     </div>
     <div class="card-actions">
-      <router-link v-if="doctor.id !== undefined" class="btn btn-primary" :to="detailRoute">
-        Details
-      </router-link>
-      <router-link v-if="isAdmin && doctor.id !== undefined" class="btn btn-secondary" :to="editRoute">
+      <router-link v-if="isAdmin && doctor.id !== undefined" class="btn btn-secondary" :to="editRoute" @click.stop>
         Bearbeiten
       </router-link>
     </div>
-  </div>
+  </article>
 </template>
 
 <style scoped>
@@ -52,9 +65,12 @@ const editRoute = computed(() => ({ name: 'doctor-edit', params: { id: props.doc
   text-align: center;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   transition: transform 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+  outline: none;
 }
 
-.doctor-card:hover {
+.doctor-card:hover,
+.doctor-card:focus-visible {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(21, 93, 252, 0.15);
 }
@@ -102,6 +118,7 @@ const editRoute = computed(() => ({ name: 'doctor-edit', params: { id: props.doc
   display: flex;
   gap: 10px;
   justify-content: center;
+  min-height: 40px;
 }
 
 .btn {

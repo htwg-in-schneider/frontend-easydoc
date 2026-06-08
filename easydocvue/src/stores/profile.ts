@@ -18,10 +18,8 @@ export interface BackendProfile {
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
 
-export function roleRedirectPath(role?: UserRole | null) {
-  if (role === 'ADMIN') return '/admin/users'
-  if (role === 'DOCTOR') return '/doctor/dashboard'
-  return '/doctors'
+export function roleRedirectPath(_role?: UserRole | null) {
+  return '/'
 }
 
 export const useProfileStore = defineStore('profile', () => {

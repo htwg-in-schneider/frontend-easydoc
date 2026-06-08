@@ -39,22 +39,12 @@ export interface UserSummary {
   lastName: string | null
 }
 
-export interface AppointmentDoctor {
-  id: number
-  title?: string | null
-  firstName?: string | null
-  lastName?: string | null
-  practiceName?: string | null
-  city?: string | null
-  doctorType?: DoctorType | null
-}
-
 export interface Appointment {
   id: number
   date: string
   time: string | null
   price: number | null
-  doctor?: AppointmentDoctor | null
+  doctor?: Doctor | null
   user?: UserSummary | null
 }
 
@@ -201,8 +191,15 @@ export const useDoctorStore = defineStore('doctors', () => {
     })
   }
 
-  async function removeAppointment(id: number) {
-    await fetch(`${API_BASE}/appointments/${id}`, { method: 'DELETE' })
+  async function removeAppointment(id: number, token?: string) {
+    const res = await fetch(`${API_BASE}/appointments/${id}`, {
+      method: 'DELETE',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+
+    if (!res.ok) {
+      throw new Error(`Termin konnte nicht storniert werden: ${res.status} ${res.statusText}`)
+    }
   }
 
   return {

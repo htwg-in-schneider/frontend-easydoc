@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useAuth0 } from '@auth0/auth0-vue'
 import { storeToRefs } from 'pinia'
 import { useDoctorStore, type Appointment } from '@/stores/doctors'
 import { usePopupStore } from '@/stores/popup'
@@ -15,6 +16,7 @@ const emit = defineEmits<{
   deleted: []
 }>()
 
+const { getAccessTokenSilently } = useAuth0()
 const doctorStore = useDoctorStore()
 const profileStore = useProfileStore()
 const popup = usePopupStore()
@@ -62,8 +64,18 @@ async function onDelete(id: number) {
   })
 
   if (!confirmed) return
-  await doctorStore.removeAppointment(id)
-  emit('deleted')
+
+  try {
+    const token = await getAccessTokenSilently()
+    await doctorStore.removeAppointment(id, token)
+    emit('deleted')
+  } catch (error) {
+    await popup.showMessage({
+      title: 'Löschen fehlgeschlagen',
+      message: error instanceof Error ? error.message : 'Der Termin konnte nicht gelöscht werden.',
+      variant: 'danger',
+    })
+  }
 }
 </script>
 

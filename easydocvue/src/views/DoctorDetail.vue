@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import {
@@ -20,6 +20,7 @@ const profileStore = useProfileStore()
 const doctor = ref<Doctor | null>(null)
 const appointments = ref<Appointment[]>([])
 const { isAdmin } = storeToRefs(profileStore)
+const canBook = computed(() => !isAdmin.value)
 
 function toExternalUrl(url: string | null) {
   if (!url) return ''
@@ -109,6 +110,13 @@ async function onAppointmentDeleted() {
       </div>
 
       <div class="detail-actions">
+        <router-link
+          v-if="canBook"
+          class="btn btn-primary"
+          :to="{ name: 'booking', params: { id: doctor.id } }"
+        >
+          Termin buchen
+        </router-link>
         <router-link v-if="isAdmin" class="btn btn-primary" :to="{ name: 'doctor-edit', params: { id: doctor.id } }">
           Bearbeiten
         </router-link>
