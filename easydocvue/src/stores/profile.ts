@@ -32,6 +32,7 @@ export const useProfileStore = defineStore('profile', () => {
   const role = computed(() => profile.value?.role ?? null)
   const isAdmin = computed(() => role.value === 'ADMIN')
   const isDoctor = computed(() => role.value === 'DOCTOR')
+  const isUser = computed(() => role.value === 'USER')
 
   async function load(token: string, force = false) {
     if (profile.value && !force) return profile.value
@@ -76,6 +77,7 @@ export const useProfileStore = defineStore('profile', () => {
     role,
     isAdmin,
     isDoctor,
+    isUser,
     load,
     clear,
   }

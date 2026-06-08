@@ -1,24 +1,29 @@
 <script setup>
-import { ref } from 'vue';
-import { useRouter } from 'vue-router'; // 1. useRouter importieren
+import { computed, ref, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router'; // 1. useRouter importieren
 import { useAuth0 } from '@auth0/auth0-vue';
+import { storeToRefs } from 'pinia';
+import { useDoctorStore } from '@/stores/doctors';
+import { useProfileStore } from '@/stores/profile';
 import NavBar from '@/components/NavBar.vue';
 import AppFooter from '@/components/AppFooter.vue';
 
 const router = useRouter(); // 2. Router-Instanz holen
-const { isAuthenticated, loginWithRedirect } = useAuth0();
+const route = useRoute();
+const doctorStore = useDoctorStore();
+const profileStore = useProfileStore();
+const { profile } = storeToRefs(profileStore);
+const { isAuthenticated, loginWithRedirect, getAccessTokenSilently } = useAuth0();
 
-// Statische Daten, die normalerweise vom Backend oder aus dem Router-State kommen würden
-const doctor = ref({
-  title: 'Dr.',
-  firstName: 'Sarah',
-  lastName: 'Fischer',
-  doctorType: { name: 'Lungenarzt' },
-});
+const doctor = ref(null);
+const loading = ref(true);
 
-const selectedDate = ref('Dienstag, 14. April 2026');
+const selectedDate = ref('Montag, 15. Juni 2026');
 const selectedTime = ref('08:00');
 const visitReason = ref('Ich habe Bauchschmerzen!');
+const dateValueMap = {
+  'Montag, 15. Juni 2026': '2026-06-15',
+};
 
 const timeSlots = ref([
   '08:00', '08:30', '09:00', '09:30',
@@ -27,14 +32,37 @@ const timeSlots = ref([
   '16:00', '16:30', '17:00', '17:30',
 ]);
 
+const doctorTypeName = computed(() => doctor.value?.doctorType?.name || '');
+
+onMounted(async () => {
+  const id = Number(route.query.doctorId);
+  if (!id) {
+    router.push('/doctors');
+    return;
+  }
+
+  doctor.value = await doctorStore.getById(id);
+  loading.value = false;
+});
+
 const confirmAppointment = async () => {
   if (!isAuthenticated.value) {
     await loginWithRedirect({ appState: { target: router.currentRoute.value.fullPath } });
     return;
   }
 
-  // Hier würde die finale POST-Anfrage an das Backend gesendet werden
-  console.log('Sende finale Buchung an das Backend...');
+  const token = await getAccessTokenSilently();
+  await profileStore.load(token);
+
+  if (!doctor.value || !profile.value?.id) return;
+
+  await doctorStore.addAppointment({
+    date: dateValueMap[selectedDate.value] || selectedDate.value,
+    time: selectedTime.value,
+    price: null,
+    doctor: { id: doctor.value.id },
+    user: { id: profile.value.id, firstName: profile.value.firstName ?? null, lastName: profile.value.lastName ?? null },
+  });
 
   // 3. Zur Bestätigungsseite weiterleiten
   router.push('/booking-confirmation');
@@ -49,13 +77,13 @@ const confirmAppointment = async () => {
         <v-card class="pa-6">
           <h1 class="text-h5 font-weight-bold mb-1">Termin buchen</h1>
           <p class="text-body-1 mb-6 text-primary">
-            {{ doctor.title }} {{ doctor.firstName }} {{ doctor.lastName }} • {{ doctor.doctorType.name }}
+            {{ loading ? 'Laden...' : `${doctor?.title ?? ''} ${doctor?.firstName ?? ''} ${doctor?.lastName ?? ''} • ${doctorTypeName}` }}
           </p>
 
           <label class="font-weight-medium">Datum auswählen</label>
           <v-select
             v-model="selectedDate"
-            :items="['Dienstag, 14. April 2026']"
+            :items="['Montag, 15. Juni 2026']"
             variant="outlined"
             density="compact"
             prepend-inner-icon="mdi-calendar"
@@ -94,6 +122,7 @@ const confirmAppointment = async () => {
             block
             size="large"
             @click="confirmAppointment"
+            :disabled="loading"
           >
             Termin bestätigen
           </v-btn>

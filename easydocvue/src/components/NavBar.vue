@@ -8,7 +8,7 @@ import flagge from '@/assets/images/DeutschlandFlagge.png'
 
 const { loginWithRedirect, logout, isAuthenticated, user, getAccessTokenSilently } = useAuth0()
 const profileStore = useProfileStore()
-const { isAdmin, isDoctor } = storeToRefs(profileStore)
+const { isAdmin, isDoctor, isUser } = storeToRefs(profileStore)
 const isMenuOpen = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
 
@@ -72,10 +72,12 @@ watch(isAuthenticated, async (authenticated) => {
 
     <div class="nav-links">
       <router-link class="nav-link" to="/">Startseite</router-link>
+      <router-link v-if="isUser" class="nav-link" to="/doctors/map">Arzt finden</router-link>
       <router-link v-if="isAdmin" class="nav-link" to="/doctors">Ärzte</router-link>
       <router-link v-if="isAdmin" class="nav-link" to="/Benutzerverwaltung">Benutzer</router-link>
       <router-link v-if="isDoctor" class="nav-link" to="/doctor/dashboard">Kalender</router-link>
-      <router-link v-if="isDoctor" class="nav-link" to="/my-bookings">Meine Termine</router-link>
+      <router-link v-if="isDoctor || isAdmin || isUser" class="nav-link" to="/my-bookings">Meine Termine</router-link>
+     
       <router-link class="nav-link" to="/symptom-analysis">Symptomanalyse</router-link>
     </div>
 
