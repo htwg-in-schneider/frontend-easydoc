@@ -8,14 +8,14 @@ import flagge from '@/assets/images/DeutschlandFlagge.png'
 
 const { loginWithRedirect, logout, isAuthenticated, user, getAccessTokenSilently } = useAuth0()
 const profileStore = useProfileStore()
-const { isAdmin, isDoctor, isUser } = storeToRefs(profileStore)
+const { profile, isAdmin, isDoctor, isUser } = storeToRefs(profileStore)
 const appointmentsLabel = computed(() => (isAdmin.value ? 'Alle Termine' : 'Meine Termine'))
 const isMenuOpen = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
 
-const profilePicture = computed(() => user.value?.picture)
+const profilePicture = computed(() => profile.value?.imageUrl || user.value?.picture)
 const fallbackInitial = computed(() => {
-  const name = user.value?.name || user.value?.email || 'U'
+  const name = profile.value?.firstName || user.value?.name || user.value?.email || 'U'
   return name.charAt(0).toUpperCase()
 })
 
