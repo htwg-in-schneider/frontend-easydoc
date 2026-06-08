@@ -17,8 +17,8 @@ async function redirectByRole() {
   }
 
   const token = await getAccessTokenSilently()
-  await profileStore.load(token, true)
-  router.replace('/')
+  const profile = await profileStore.load(token, true)
+  await router.replace(roleRedirectPath(profile?.role))
 }
 
 watch([isLoading, isAuthenticated], redirectByRole, { immediate: true })

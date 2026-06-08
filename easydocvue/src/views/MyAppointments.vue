@@ -18,6 +18,7 @@ const errorMessage = ref('')
 
 const isAdmin = computed(() => profile.value?.role === 'ADMIN')
 const isDoctor = computed(() => profile.value?.role === 'DOCTOR')
+const pageTitle = computed(() => (isAdmin.value ? 'Alle Termine' : 'Meine Termine'))
 const isLoading = computed(() => isProfileLoading.value || isAppointmentsLoading.value)
 const emptyMessage = computed(() =>
   isAdmin.value ? 'Keine bevorstehenden Termine.' : isDoctor.value ? 'Keine bevorstehenden Patiententermine.' : 'Keine bevorstehenden Termine.',
@@ -97,7 +98,7 @@ watch(isAuthenticated, (authenticated) => {
   <main class="appointments-page">
     <section class="appointments-panel">
       <div class="appointments-header">
-        <h1>Meine Termine</h1>
+        <h1>{{ pageTitle }}</h1>
         <span v-if="profile?.role" class="role-pill">
           {{ isAdmin ? 'Admin' : isDoctor ? 'Arzt' : 'Patient' }}
         </span>

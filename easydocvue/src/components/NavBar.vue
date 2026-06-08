@@ -9,6 +9,7 @@ import flagge from '@/assets/images/DeutschlandFlagge.png'
 const { loginWithRedirect, logout, isAuthenticated, user, getAccessTokenSilently } = useAuth0()
 const profileStore = useProfileStore()
 const { isAdmin, isDoctor, isUser } = storeToRefs(profileStore)
+const appointmentsLabel = computed(() => (isAdmin.value ? 'Alle Termine' : 'Meine Termine'))
 const isMenuOpen = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
 
@@ -57,7 +58,7 @@ watch(isAuthenticated, async (authenticated) => {
 
   try {
     const token = await getAccessTokenSilently()
-    await profileStore.load(token)
+    await profileStore.load(token, true)
   } catch (error) {
     console.error('Profile loading failed', error)
   }
@@ -72,12 +73,19 @@ watch(isAuthenticated, async (authenticated) => {
 
     <div class="nav-links">
       <router-link class="nav-link" to="/">Startseite</router-link>
-      <router-link v-if="isUser" class="nav-link" to="/doctors/map">Arzt finden</router-link>
-      <router-link v-if="isAdmin" class="nav-link" to="/doctors">Ärzte</router-link>
-      <router-link v-if="isAdmin" class="nav-link" to="/Benutzerverwaltung">Benutzer</router-link>
-      <router-link v-if="isDoctor" class="nav-link" to="/doctor/dashboard">Kalender</router-link>
-      <router-link v-if="isDoctor || isAdmin || isUser" class="nav-link" to="/my-bookings">Meine Termine</router-link>
-     
+      <template v-if="isAdmin">
+        <router-link class="nav-link" to="/doctors">Ärzte</router-link>
+        <router-link class="nav-link" to="/Benutzerverwaltung">Benutzer</router-link>
+        <router-link class="nav-link" to="/my-bookings">{{ appointmentsLabel }}</router-link>
+      </template>
+      <template v-else-if="isDoctor">
+        <router-link class="nav-link" to="/my-bookings">{{ appointmentsLabel }}</router-link>
+        <router-link class="nav-link" to="/doctor/dashboard">Kalender</router-link>
+      </template>
+      <template v-else-if="isUser">
+        <router-link class="nav-link" to="/doctors/map">Arzt finden</router-link>
+        <router-link class="nav-link" to="/my-bookings">{{ appointmentsLabel }}</router-link>
+      </template>
       <router-link class="nav-link" to="/symptom-analysis">Symptomanalyse</router-link>
     </div>
 
@@ -100,9 +108,17 @@ watch(isAuthenticated, async (authenticated) => {
 
         <div v-if="isMenuOpen" class="profile-dropdown">
           <router-link class="dropdown-item" to="/profile" @click="closeMenu">Profil</router-link>
-          <router-link v-if="isAdmin" class="dropdown-item" to="/Benutzerverwaltung" @click="closeMenu">Benutzer</router-link>
-          <router-link v-if="isDoctor" class="dropdown-item" to="/doctor/dashboard" @click="closeMenu">Kalender</router-link>
-          <router-link v-if="!isAdmin" class="dropdown-item" to="/my-bookings" @click="closeMenu">Meine Termine</router-link>
+          <template v-if="isAdmin">
+            <router-link class="dropdown-item" to="/Benutzerverwaltung" @click="closeMenu">Benutzer</router-link>
+            <router-link class="dropdown-item" to="/my-bookings" @click="closeMenu">{{ appointmentsLabel }}</router-link>
+          </template>
+          <template v-else-if="isDoctor">
+            <router-link class="dropdown-item" to="/doctor/dashboard" @click="closeMenu">Kalender</router-link>
+            <router-link class="dropdown-item" to="/my-bookings" @click="closeMenu">{{ appointmentsLabel }}</router-link>
+          </template>
+          <template v-else-if="isUser">
+            <router-link class="dropdown-item" to="/my-bookings" @click="closeMenu">{{ appointmentsLabel }}</router-link>
+          </template>
           <button type="button" class="dropdown-item dropdown-button" @click="handleLogout">Abmelden</button>
         </div>
       </div>
