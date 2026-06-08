@@ -3,6 +3,11 @@ import { defineStore } from 'pinia'
 
 export type UserRole = 'USER' | 'DOCTOR' | 'ADMIN'
 
+export interface DoctorTypeRef {
+  id?: number | null
+  name?: string | null
+}
+
 export interface BackendProfile {
   id?: number | null
   name?: string | null
@@ -14,6 +19,18 @@ export interface BackendProfile {
   insurance?: string | null
   status?: string | null
   age?: number | null
+  title?: string | null
+  practiceName?: string | null
+  rating?: number | null
+  phoneNumber?: string | null
+  website?: string | null
+  street?: string | null
+  postcode?: string | null
+  city?: string | null
+  country?: string | null
+  imageUrl?: string | null
+  distance?: number | null
+  doctorType?: DoctorTypeRef | null
 }
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
