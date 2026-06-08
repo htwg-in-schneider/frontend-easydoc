@@ -60,8 +60,8 @@ const confirmAppointment = async () => {
     date: dateValueMap[selectedDate.value] || selectedDate.value,
     time: selectedTime.value,
     price: null,
-    doctor: { id: doctor.value.id },
-    user: { id: profile.value.id, firstName: profile.value.firstName ?? null, lastName: profile.value.lastName ?? null },
+    doctorId: doctor.value.id,
+    userId: profile.value.id,
   });
 
   // 3. Zur Bestätigungsseite weiterleiten

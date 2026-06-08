@@ -10,7 +10,7 @@ export interface BackendProfile {
   lastName?: string | null
   email?: string | null
   role?: UserRole | null
-  oauthId?: string | null
+  auth0Id?: string | null
   insurance?: string | null
   status?: string | null
   age?: number | null

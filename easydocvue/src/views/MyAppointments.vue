@@ -16,10 +16,11 @@ const appointments = ref<Appointment[]>([])
 const isAppointmentsLoading = ref(false)
 const errorMessage = ref('')
 
+const isAdmin = computed(() => profile.value?.role === 'ADMIN')
 const isDoctor = computed(() => profile.value?.role === 'DOCTOR')
 const isLoading = computed(() => isProfileLoading.value || isAppointmentsLoading.value)
 const emptyMessage = computed(() =>
-  isDoctor.value ? 'Keine bevorstehenden Patiententermine.' : 'Keine bevorstehenden Termine.',
+  isAdmin.value ? 'Keine bevorstehenden Termine.' : isDoctor.value ? 'Keine bevorstehenden Patiententermine.' : 'Keine bevorstehenden Termine.',
 )
 
 function userName(appointment: Appointment) {
@@ -38,6 +39,11 @@ function primaryName(appointment: Appointment) {
 
 function appointmentDetails(appointment: Appointment) {
   if (isDoctor.value) return 'Patiententermin'
+  if (isAdmin.value) {
+    const doctor = [appointment.doctor?.practiceName, appointment.doctor?.city].filter(Boolean).join(' - ')
+    const patient = [appointment.user?.firstName, appointment.user?.lastName].filter(Boolean).join(' ')
+    return [doctor, patient ? `Patient: ${patient}` : ''].filter(Boolean).join(' | ')
+  }
   return [appointment.doctor?.practiceName, appointment.doctor?.city].filter(Boolean).join(' - ')
 }
 
@@ -93,7 +99,7 @@ watch(isAuthenticated, (authenticated) => {
       <div class="appointments-header">
         <h1>Meine Termine</h1>
         <span v-if="profile?.role" class="role-pill">
-          {{ isDoctor ? 'Arzt' : 'Patient' }}
+          {{ isAdmin ? 'Admin' : isDoctor ? 'Arzt' : 'Patient' }}
         </span>
       </div>
 

@@ -40,7 +40,8 @@ async function onAdd() {
     date: form.value.date,
     time: form.value.time,
     price: form.value.price,
-    doctor: { id: props.doctorId },
+    doctorId: props.doctorId,
+    userId: null,
   })
   form.value = { date: '', time: '', price: 0 }
   showForm.value = false

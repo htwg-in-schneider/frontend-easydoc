@@ -8,8 +8,9 @@ export interface DoctorType {
   name: string
 }
 
-export interface Doctor {
+export interface User {
   id: number
+  auth0Id?: string | null
   title: string | null
   firstName: string
   lastName: string
@@ -25,10 +26,12 @@ export interface Doctor {
   postcode: string | null
   city: string | null
   country: string | null
+  role?: 'USER' | 'DOCTOR' | 'ADMIN' | null
   doctorType: DoctorType | null
 }
 
-export type DoctorPayload = Omit<Doctor, 'id'>
+export type Doctor = User
+export type DoctorPayload = Omit<User, 'id' | 'auth0Id'>
 
 export interface UserSummary {
   id: number
@@ -55,7 +58,13 @@ export interface Appointment {
   user?: UserSummary | null
 }
 
-export type AppointmentPayload = Omit<Appointment, 'id'>
+export interface AppointmentPayload {
+  date: string
+  time: string | null
+  price: number | null
+  doctorId: number
+  userId?: number | null
+}
 
 export interface DoctorSearchFilters {
   name?: string
@@ -81,7 +90,7 @@ function jsonHeaders(token?: string) {
   }
 }
 
-function matchesDoctorType(doctor: Doctor, doctorTypeFilter?: string) {
+function matchesDoctorType(doctor: User, doctorTypeFilter?: string) {
   const filter = doctorTypeFilter?.trim().toLowerCase()
   if (!filter) return true
 
@@ -91,7 +100,7 @@ function matchesDoctorType(doctor: Doctor, doctorTypeFilter?: string) {
   )
 }
 
-export function formatDoctorName(doctor: Pick<Doctor, 'title' | 'firstName' | 'lastName'>) {
+export function formatDoctorName(doctor: Pick<User, 'title' | 'firstName' | 'lastName'>) {
   return [doctor.title, doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
 }
 
@@ -100,11 +109,11 @@ export function getDoctorTypeName(doctorType: DoctorType | null | undefined) {
 }
 
 export const useDoctorStore = defineStore('doctors', () => {
-  const doctors = ref<Doctor[]>([])
+  const doctors = ref<User[]>([])
   const doctorTypes = ref<DoctorType[]>([])
 
-  async function fetchAll(): Promise<Doctor[]> {
-    const data = await requestJson<Doctor[]>(`${API_BASE}/doctors`)
+  async function fetchAll(): Promise<User[]> {
+    const data = await requestJson<User[]>(`${API_BASE}/doctors`)
     doctors.value = Array.isArray(data) ? data : []
     return doctors.value
   }
@@ -115,11 +124,12 @@ export const useDoctorStore = defineStore('doctors', () => {
     return doctorTypes.value
   }
 
-  async function search(filters: DoctorSearchFilters): Promise<Doctor[]> {
+  async function search(filters: DoctorSearchFilters): Promise<User[]> {
     const params = new URLSearchParams()
     const name = filters.name?.trim()
     const city = filters.city?.trim()
     const status = filters.status?.trim()
+    const doctorType = filters.doctorType?.trim()
 
     if (name) {
       params.set('firstName', name)
@@ -127,9 +137,12 @@ export const useDoctorStore = defineStore('doctors', () => {
     }
     if (city) params.set('city', city)
     if (status) params.set('status', status)
+    if (doctorType) params.set('doctorType', doctorType)
+    if (filters.minRating !== undefined) params.set('minRating', String(filters.minRating))
+    if (filters.maxDistance !== undefined) params.set('maxDistance', String(filters.maxDistance))
 
     const query = params.toString()
-    const data = await requestJson<Doctor[]>(`${API_BASE}/doctors${query ? `?${query}` : ''}`)
+    const data = await requestJson<User[]>(`${API_BASE}/doctors${query ? `?${query}` : ''}`)
     doctors.value = (Array.isArray(data) ? data : []).filter((doctor) => {
       if (!matchesDoctorType(doctor, filters.doctorType)) return false
       if (filters.minRating && (doctor.rating === null || doctor.rating < filters.minRating)) return false
@@ -139,14 +152,14 @@ export const useDoctorStore = defineStore('doctors', () => {
     return doctors.value
   }
 
-  async function getById(id: number): Promise<Doctor | null> {
+  async function getById(id: number): Promise<User | null> {
     const res = await fetch(`${API_BASE}/doctors/${id}`)
     if (!res.ok) return null
     return await res.json()
   }
 
   async function add(doctor: DoctorPayload, token?: string) {
-    await requestJson<Doctor>(`${API_BASE}/doctors`, {
+    await requestJson<User>(`${API_BASE}/doctors`, {
       method: 'POST',
       headers: jsonHeaders(token),
       body: JSON.stringify(doctor),
@@ -154,7 +167,7 @@ export const useDoctorStore = defineStore('doctors', () => {
   }
 
   async function update(id: number, data: DoctorPayload, token?: string) {
-    await requestJson<Doctor>(`${API_BASE}/doctors/${id}`, {
+    await requestJson<User>(`${API_BASE}/doctors/${id}`, {
       method: 'PUT',
       headers: jsonHeaders(token),
       body: JSON.stringify(data),

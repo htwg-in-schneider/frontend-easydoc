@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import {
@@ -36,19 +36,25 @@ onMounted(async () => {
   }
 
   doctor.value = await doctorStore.getById(id)
-  if (doctor.value) {
-    appointments.value = await doctorStore.getAppointments(id)
-  }
 })
 
+watch([doctor, isAdmin], async ([currentDoctor, admin]) => {
+  if (!currentDoctor || !admin) {
+    appointments.value = []
+    return
+  }
+
+  appointments.value = await doctorStore.getAppointments(currentDoctor.id)
+}, { immediate: true })
+
 async function onAppointmentAdded() {
-  if (doctor.value) {
+  if (doctor.value && isAdmin.value) {
     appointments.value = await doctorStore.getAppointments(doctor.value.id)
   }
 }
 
 async function onAppointmentDeleted() {
-  if (doctor.value) {
+  if (doctor.value && isAdmin.value) {
     appointments.value = await doctorStore.getAppointments(doctor.value.id)
   }
 }
@@ -113,6 +119,7 @@ async function onAppointmentDeleted() {
     </div>
 
     <DoctorAppointments
+      v-if="isAdmin"
       :doctor-id="doctor.id"
       :appointments="appointments"
       @added="onAppointmentAdded"

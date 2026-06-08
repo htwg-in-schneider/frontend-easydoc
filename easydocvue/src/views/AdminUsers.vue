@@ -125,7 +125,7 @@ onMounted(loadUsers)
     <p v-if="isLoading" class="message">Benutzer werden geladen...</p>
 
     <div class="user-grid">
-      <article v-for="(user, index) in filteredUsers" :key="user.id ?? user.oauthId ?? user.email ?? index" class="user-card">
+      <article v-for="(user, index) in filteredUsers" :key="user.id ?? user.auth0Id ?? user.email ?? index" class="user-card">
         <div class="card-header">
           <div>
             <h3>{{ displayValue(user.firstName) }} {{ displayValue(user.lastName) }}</h3>
@@ -186,8 +186,8 @@ onMounted(loadUsers)
             <input v-model.number="editingUser.age" type="number" min="0">
           </label>
           <label class="full-width">
-            OAuth ID (schreibgeschützt)
-            <input :value="editingUser.oauthId" type="text" readonly>
+            Auth0 ID (schreibgeschützt)
+            <input :value="editingUser.auth0Id" type="text" readonly>
           </label>
         </div>
 
