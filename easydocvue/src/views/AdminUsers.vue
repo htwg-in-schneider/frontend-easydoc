@@ -12,28 +12,34 @@ const profileStore = useProfileStore()
 
 const users = ref<BackendProfile[]>([])
 const search = ref('')
+const cityFilter = ref('')
 const message = ref('')
 const isLoading = ref(false)
 
 const filteredUsers = computed(() => {
   const term = search.value.trim().toLowerCase()
-  if (!term) return users.value
+  const city = cityFilter.value.trim().toLowerCase()
 
   return users.value.filter((user) => {
-    return [
-      user.firstName,
-      user.lastName,
-      user.email,
-      user.role,
-      user.status,
-      user.insurance,
-      user.practiceName,
-      user.city,
-      user.phoneNumber,
-      user.doctorType?.name,
-    ]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(term))
+    const matchesSearch =
+      !term ||
+      [
+        user.firstName,
+        user.lastName,
+        user.email,
+        user.role,
+        user.status,
+        user.insurance,
+        user.practiceName,
+        user.phoneNumber,
+        user.doctorType?.name,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term))
+
+    const matchesCity = !city || String(user.city ?? '').toLowerCase().includes(city)
+
+    return matchesSearch && matchesCity
   })
 })
 
@@ -96,6 +102,7 @@ onMounted(loadUsers)
   <main class="admin-container">
     <div class="filter-bar">
       <input v-model="search" type="search" placeholder="Benutzer suchen">
+      <input v-model="cityFilter" type="search" placeholder="Ort filtern">
       <button type="button" class="btn btn-primary" @click="loadUsers">Aktualisieren</button>
     </div>
 
