@@ -26,6 +26,7 @@ const visibleMonth = ref(startOfMonth(new Date()))
 const availabilitySlots = ref<AvailabilitySlot[]>([])
 const selectedDay = ref<string | null>(null)
 const selectedSlot = ref<string | null>(null)
+const forcedDaySelection = ref<string | null>(null)
 const todayKey = formatDateKey(new Date())
 
 const doctorTypeName = computed(() => getDoctorTypeName(doctor.value?.specialization ?? doctor.value?.doctorType))
@@ -145,18 +146,28 @@ async function loadMonthAvailability() {
 
     const availableDays = Array.from(slotsByDay.value.keys()).sort()
     const previousSelectedDay = selectedDay.value
+    const selectableDays = availableDays.filter((day) => !isPastDate(new Date(`${day}T00:00:00`)))
 
-    if (
+    if (forcedDaySelection.value && slotsByDay.value.has(forcedDaySelection.value)) {
+      selectedDay.value = forcedDaySelection.value
+    } else if (
       visibleMonth.value.getMonth() === new Date().getMonth() &&
       visibleMonth.value.getFullYear() === new Date().getFullYear() &&
-      slotsByDay.value.has(todayKey)
+      slotsByDay.value.has(todayKey) &&
+      !isPastDate(new Date(`${todayKey}T00:00:00`))
     ) {
       selectedDay.value = todayKey
-    } else if (previousSelectedDay && slotsByDay.value.has(previousSelectedDay)) {
+    } else if (
+      previousSelectedDay &&
+      slotsByDay.value.has(previousSelectedDay) &&
+      !isPastDate(new Date(`${previousSelectedDay}T00:00:00`))
+    ) {
       selectedDay.value = previousSelectedDay
     } else {
-      selectedDay.value = availableDays[0] ?? null
+      selectedDay.value = selectableDays[0] ?? null
     }
+
+    forcedDaySelection.value = null
 
     if (selectedDay.value) {
       const slotsForDay = slotsByDay.value.get(selectedDay.value) ?? []
@@ -179,7 +190,10 @@ function closeCalendar() {
 }
 
 function goToToday() {
+  forcedDaySelection.value = todayKey
   visibleMonth.value = startOfMonth(new Date())
+  selectedDay.value = todayKey
+  selectedSlot.value = null
 }
 
 function chooseMonth(offset: number) {
@@ -187,6 +201,16 @@ function chooseMonth(offset: number) {
 }
 
 function selectDay(day: string) {
+  const date = new Date(`${day}T00:00:00`)
+  if (isPastDate(date) || daySlotCount(day) === 0) {
+    popup.showMessage({
+      title: 'Termin nicht verfügbar',
+      message: 'Dieser Tag kann nicht gebucht werden. Bitte wählen Sie einen freien Termin aus.',
+      variant: 'danger',
+    })
+    return
+  }
+
   selectedDay.value = day
   selectedSlot.value = slotsByDay.value.get(day)?.[0]?.startDateTime ?? null
 }
@@ -215,7 +239,17 @@ async function confirmAppointment() {
     return
   }
 
-  if (!doctor.value || !selectedSlot.value) return
+  if (!doctor.value || !selectedDay.value || !selectedSlot.value) return
+
+  const selectedDate = new Date(`${selectedDay.value}T00:00:00`)
+  if (isPastDate(selectedDate) || selectedDaySlots.value.length === 0) {
+    await popup.showMessage({
+      title: 'Termin nicht verfügbar',
+      message: 'Der ausgewählte Tag kann nicht gebucht werden. Bitte wählen Sie einen freien Termin aus.',
+      variant: 'danger',
+    })
+    return
+  }
 
   const slotStillVisible = selectedDaySlots.value.some((slot) => slot.startDateTime === selectedSlot.value)
   if (!slotStillVisible) {
