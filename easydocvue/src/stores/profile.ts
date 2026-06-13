@@ -19,6 +19,7 @@ export interface BackendProfile {
   insurance?: string | null
   status?: string | null
   age?: number | null
+  birthday?: string | null
   title?: string | null
   practiceName?: string | null
   rating?: number | null

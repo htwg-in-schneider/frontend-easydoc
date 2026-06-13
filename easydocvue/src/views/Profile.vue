@@ -19,9 +19,22 @@ const form = ref({
   lastName: '',
   email: '',
   insurance: '',
-  age: null as number | null,
+  birthday: '',
   imageUrl: '',
 })
+
+function calculateAge(birthday?: string | null) {
+  if (!birthday) return null
+  const date = new Date(`${birthday}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return null
+  const today = new Date()
+  let age = today.getFullYear() - date.getFullYear()
+  const monthDiff = today.getMonth() - date.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    age -= 1
+  }
+  return age
+}
 
 const displayName = computed(() => {
   const firstName = profile.value?.firstName?.trim()
@@ -31,8 +44,9 @@ const displayName = computed(() => {
 })
 
 const subtitle = computed(() => {
-  if (profile.value?.age !== null && profile.value?.age !== undefined) {
-    return `Alter: ${profile.value.age}`
+  const age = calculateAge(profile.value?.birthday) ?? profile.value?.age
+  if (age !== null && age !== undefined) {
+    return `Alter: ${age}`
   }
   if (profile.value?.role) {
     return `Rolle: ${profile.value.role}`
@@ -64,7 +78,7 @@ function syncForm(source: BackendProfile | null) {
     lastName: source?.lastName ?? '',
     email: source?.email ?? '',
     insurance: source?.insurance ?? '',
-    age: source?.age ?? null,
+    birthday: source?.birthday ?? '',
     imageUrl: source?.imageUrl?.trim() || user.value?.picture || '',
   }
 }
@@ -103,7 +117,7 @@ async function saveProfile() {
         lastName: form.value.lastName,
         email: form.value.email,
         insurance: form.value.insurance,
-        age: form.value.age,
+        birthday: form.value.birthday || null,
         imageUrl: form.value.imageUrl,
       }),
     })
@@ -192,8 +206,8 @@ watch(isAuthenticated, (authenticated) => {
           </label>
 
           <label>
-            Alter
-            <input v-model.number="form.age" type="number" min="0" step="1" placeholder="Alter">
+            Geburtsdatum
+            <input v-model="form.birthday" type="date">
           </label>
 
           <label class="full-width">
