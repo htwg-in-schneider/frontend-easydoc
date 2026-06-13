@@ -1,58 +1,131 @@
 <script setup lang="ts">
-import { onMounted, ref, nextTick, computed } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRoute, useRouter } from 'vue-router'
-import { useDoctorStore, formatDoctorName, getDoctorTypeName } from '@/stores/doctors'
-import type { Doctor } from '@/stores/doctors'
+import { useRouter } from 'vue-router'
+import { useDoctorStore, formatDoctorName, getDoctorTypeName, type Doctor, type DoctorSearchFilters } from '@/stores/doctors'
+import DoctorFilter from '@/components/DoctorFilter.vue'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 const router = useRouter()
-const route = useRoute()
 const doctorStore = useDoctorStore()
 const { doctors } = storeToRefs(doctorStore)
 
 const mapContainer = ref<HTMLElement | null>(null)
 const selectedDoctor = ref<Doctor | null>(null)
+const activeFilters = ref<DoctorSearchFilters>({})
 let map: L.Map | null = null
 const markerMap = new Map<number, L.Marker>()
+const markerPositionCache = new Map<string, [number, number]>()
+let renderVersion = 0
 
 // Default center: Konstanz Petershausen
 const defaultCenter: [number, number] = [47.6725, 9.1732]
 
-// Filtered and sorted: max 5km distance, highest rating first
-const filteredDoctors = computed(() => {
-  const doctorType = String(route.query.doctorType || '').trim().toLowerCase()
-  const city = String(route.query.city || '').trim().toLowerCase()
+function normalized(value: string | number | null | undefined) {
+  return String(value ?? '').trim().toLowerCase()
+}
 
+function matchesFilters(doctor: Doctor, filters: DoctorSearchFilters) {
+  const term = normalized(filters.name)
+  const practice = normalized(doctor.practiceName)
+  const firstName = normalized(doctor.firstName)
+  const lastName = normalized(doctor.lastName)
+  const email = normalized(doctor.email)
+  const status = normalized(doctor.status)
+  const specializationName = normalized(doctor.specialization?.name ?? doctor.doctorType?.name)
+  const city = normalized(doctor.city)
+
+  const matchesName =
+    !term ||
+    [firstName, lastName, practice, email, status, specializationName]
+      .some((value) => value.includes(term))
+
+  const filterType = normalized(filters.doctorType)
+  const matchesType =
+    !filterType ||
+    normalized(doctor.specialization?.id ?? doctor.doctorType?.id).includes(filterType) ||
+    specializationName.includes(filterType)
+
+  const matchesRating =
+    filters.minRating === undefined ||
+    filters.minRating === null ||
+    doctor.rating === null ||
+    doctor.rating >= filters.minRating
+
+  const matchesDistance =
+    filters.maxDistance === undefined ||
+    filters.maxDistance === null ||
+    doctor.distance === null ||
+    doctor.distance <= filters.maxDistance
+
+  const matchesCity = !filters.city || city.includes(normalized(filters.city))
+
+  return matchesName && matchesType && matchesRating && matchesDistance && matchesCity
+}
+
+const filteredDoctors = computed(() => {
+  const filters = activeFilters.value
   return doctors.value
-    .filter(d => d.distance !== null && d.distance <= 5)
-    .filter((d) => {
-      const typeName = getDoctorTypeName(d.doctorType).toLowerCase()
-      const matchesType = !doctorType || typeName === doctorType
-      const matchesCity = !city || (d.city || '').toLowerCase() === city
-      return matchesType && matchesCity
+    .filter((doctor) => matchesFilters(doctor, filters))
+    .sort((a, b) => {
+      const aDistance = a.distance ?? Number.POSITIVE_INFINITY
+      const bDistance = b.distance ?? Number.POSITIVE_INFINITY
+      if (aDistance !== bDistance) return aDistance - bDistance
+
+      const aRating = a.rating ?? 0
+      const bRating = b.rating ?? 0
+      if (aRating !== bRating) return bRating - aRating
+
+      return formatDoctorName(a).localeCompare(formatDoctorName(b))
     })
-    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
 })
 
-async function geocodeAddress(doctor: Doctor): Promise<[number, number] | null> {
-  const parts = [doctor.street, doctor.postcode, doctor.city, doctor.country].filter(Boolean)
-  if (parts.length === 0) return null
-
-  const query = encodeURIComponent(parts.join(', '))
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`)
-    const data = await res.json()
-    if (data.length > 0) {
-      return [parseFloat(data[0].lat), parseFloat(data[0].lon)]
-    }
-  } catch (e) {
-    console.error('Geocoding failed for', parts.join(', '), e)
+function hashString(value: string) {
+  let hash = 0
+  for (let i = 0; i < value.length; i += 1) {
+    hash = ((hash << 5) - hash) + value.charCodeAt(i)
+    hash |= 0
   }
-  return null
+  return Math.abs(hash)
+}
+
+function getDoctorMarkerCoords(doctor: Doctor): [number, number] {
+  const cacheKey = [
+    doctor.id,
+    doctor.street,
+    doctor.postcode,
+    doctor.city,
+    doctor.country,
+    doctor.distance,
+  ]
+    .filter((value) => value !== null && value !== undefined && String(value).trim() !== '')
+    .join('|')
+
+  const cached = markerPositionCache.get(cacheKey)
+  if (cached) return cached
+
+  const hash = hashString(cacheKey || String(doctor.id))
+  const angle = (hash % 360) * (Math.PI / 180)
+
+  const baseRadiusKm = doctor.distance !== null && doctor.distance !== undefined
+    ? Math.max(0.6, Math.min(doctor.distance, 8))
+    : 1.8 + ((hash % 5) * 0.4)
+
+  const jitterKm = ((hash % 100) / 100) * 0.45
+  const radiusKm = baseRadiusKm + jitterKm
+  const latitudeScale = 1 / 111
+  const longitudeScale = 1 / (111 * Math.cos(defaultCenter[0] * Math.PI / 180))
+
+  const coords: [number, number] = [
+    defaultCenter[0] + Math.sin(angle) * radiusKm * latitudeScale,
+    defaultCenter[1] + Math.cos(angle) * radiusKm * longitudeScale,
+  ]
+
+  markerPositionCache.set(cacheKey, coords)
+  return coords
 }
 
 function buildPopupContent(doctor: Doctor): string {
@@ -84,11 +157,23 @@ onMounted(async () => {
 async function initMap() {
   if (!mapContainer.value) return
 
-  map = L.map(mapContainer.value).setView(defaultCenter, 14)
+  if (!map) {
+    map = L.map(mapContainer.value).setView(defaultCenter, 12)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+    }).addTo(map)
+  }
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
-  }).addTo(map)
+  await renderMarkers()
+  map?.invalidateSize()
+}
+
+async function renderMarkers() {
+  if (!map) return
+
+  const currentVersion = ++renderVersion
+  markerMap.forEach((marker) => marker.remove())
+  markerMap.clear()
 
   const markerIcon = L.icon({
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -99,19 +184,30 @@ async function initMap() {
     popupAnchor: [1, -34],
   })
 
-  for (const doctor of filteredDoctors.value) {
-    const coords = await geocodeAddress(doctor)
-    if (!coords) continue
+  const coordinates: Array<[number, number]> = []
 
-    const marker = L.marker(coords, { icon: markerIcon }).addTo(map!)
+  for (const doctor of filteredDoctors.value) {
+    if (currentVersion !== renderVersion) return
+    const coords = getDoctorMarkerCoords(doctor)
+
+    coordinates.push(coords)
+    const marker = L.marker(coords, { icon: markerIcon }).addTo(map)
     marker.bindPopup(buildPopupContent(doctor))
     markerMap.set(doctor.id, marker)
 
     marker.on('click', () => {
-      selectedDoctor.value = doctor
-      map!.setView(coords, 16, { animate: true })
+      selectDoctor(doctor)
+      map?.setView(coords, Math.max(map.getZoom(), 14), { animate: true })
       marker.openPopup()
     })
+  }
+
+  if (coordinates.length === 1) {
+    map.setView(coordinates[0], 14, { animate: true })
+  } else if (coordinates.length > 1) {
+    map.fitBounds(L.latLngBounds(coordinates), { padding: [40, 40] })
+  } else {
+    map.setView(defaultCenter, 12)
   }
 }
 
@@ -120,14 +216,34 @@ function selectDoctor(doctor: Doctor) {
   const marker = markerMap.get(doctor.id)
   if (marker && map) {
     const latlng = marker.getLatLng()
-    map.setView(latlng, 16, { animate: true })
+    map.flyTo(latlng, Math.max(map.getZoom(), 14), { animate: true, duration: 0.7 })
     marker.openPopup()
   }
+
+  nextTick(() => {
+    const card = document.querySelector<HTMLElement>(`[data-doctor-id="${doctor.id}"]`)
+    card?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  })
+}
+
+function onFilter(filters: DoctorSearchFilters) {
+  activeFilters.value = filters
+  selectedDoctor.value = null
 }
 
 function goToDetail(doctorId: number) {
   router.push({ name: 'booking', params: { id: doctorId } })
 }
+
+watch(filteredDoctors, async () => {
+  await renderMarkers()
+  map?.invalidateSize()
+}, { deep: true })
+
+onBeforeUnmount(() => {
+  map?.remove()
+  map = null
+})
 </script>
 
 <template>
@@ -141,6 +257,8 @@ function goToDetail(doctorId: number) {
   </section>
 
   <div class="map-page">
+    <DoctorFilter @filter="onFilter" />
+
     <div class="map-controls">
       <router-link class="view-btn" to="/doctors">Listenansicht</router-link>
     </div>
@@ -148,25 +266,31 @@ function goToDetail(doctorId: number) {
     <div class="map-layout">
       <!-- Doctor list sidebar -->
       <aside class="doctor-sidebar">
-        <div
-          v-for="doctor in filteredDoctors"
-          :key="doctor.id"
-          class="sidebar-card"
-          :class="{ active: selectedDoctor?.id === doctor.id }"
-          @click="selectDoctor(doctor)"
-        >
-          <h4>{{ formatDoctorName(doctor) }}</h4>
-          <span class="sidebar-type">{{ getDoctorTypeName(doctor.doctorType) }}</span>
-          <div class="sidebar-meta">
-            <span v-if="doctor.rating !== null" class="meta-item">
-              ⭐ {{ doctor.rating }}
-            </span>
-            <span v-if="doctor.distance !== null" class="meta-item">
-              📍 {{ doctor.distance }} km
-            </span>
+        <template v-if="filteredDoctors.length">
+          <div
+            v-for="doctor in filteredDoctors"
+            :key="doctor.id"
+            class="sidebar-card"
+            :class="{ active: selectedDoctor?.id === doctor.id }"
+            :data-doctor-id="doctor.id"
+            @click="selectDoctor(doctor)"
+          >
+            <h4>{{ formatDoctorName(doctor) }}</h4>
+            <span class="sidebar-type">{{ getDoctorTypeName(doctor.doctorType) }}</span>
+            <div class="sidebar-meta">
+              <span v-if="doctor.rating !== null" class="meta-item">
+                ⭐ {{ doctor.rating }}
+              </span>
+              <span v-if="doctor.distance !== null" class="meta-item">
+                📍 {{ doctor.distance }} km
+              </span>
+            </div>
+            <p v-if="doctor.street" class="sidebar-address">{{ doctor.street }}, {{ doctor.city }}</p>
+            <button class="btn-book" @click.stop="goToDetail(doctor.id)">Termin buchen</button>
           </div>
-          <p v-if="doctor.street" class="sidebar-address">{{ doctor.street }}, {{ doctor.city }}</p>
-          <button class="btn-book" @click.stop="goToDetail(doctor.id)">Termin buchen</button>
+        </template>
+        <div v-else class="sidebar-empty">
+          Keine Ärzte passen zu diesen Filtern.
         </div>
       </aside>
 
@@ -241,6 +365,16 @@ function goToDetail(doctorId: number) {
   flex-direction: column;
   gap: 12px;
   padding-right: 8px;
+}
+
+.sidebar-empty {
+  padding: 18px 16px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px dashed #d6def7;
+  color: #6d7690;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .sidebar-card {
