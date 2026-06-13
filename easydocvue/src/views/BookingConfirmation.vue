@@ -1,25 +1,39 @@
-<script setup>
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import NavBar from '@/components/NavBar.vue';
-import AppFooter from '@/components/AppFooter.vue';
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import NavBar from '@/components/NavBar.vue'
+import AppFooter from '@/components/AppFooter.vue'
 
-const router = useRouter();
+const router = useRouter()
+const route = useRoute()
 
-// Statische Daten, die normalerweise aus dem Router-State oder einem Store kommen würden
-const confirmedAppointment = ref({
-  doctorName: 'Dr. Sarah Fischer',
-  dateTime: 'Dienstag, 14. April 2026 - 08:00',
-});
+const confirmedAppointment = computed(() => {
+  const doctorName = typeof route.query.doctorName === 'string' && route.query.doctorName.trim()
+    ? route.query.doctorName
+    : 'Ihr Termin'
+
+  const startDateTime = typeof route.query.startDateTime === 'string' ? route.query.startDateTime : ''
+  const dateTime = startDateTime
+    ? new Intl.DateTimeFormat('de-DE', {
+        weekday: 'long',
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(startDateTime))
+    : 'Termin bestätigt'
+
+  return { doctorName, dateTime }
+})
 
 const goToMyBookings = () => {
-  // Annahme: Es gibt eine Seite '/my-bookings' für die Terminübersicht
-  router.push('/my-bookings'); 
-};
+  router.push('/my-bookings')
+}
 
 const goToHome = () => {
-  router.push('/');
-};
+  router.push('/')
+}
 </script>
 
 <template>

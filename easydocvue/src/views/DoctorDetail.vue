@@ -2,6 +2,7 @@
 import { computed, ref, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
+import { useAuth0 } from '@auth0/auth0-vue'
 import {
   formatDoctorName,
   getDoctorTypeName,
@@ -17,6 +18,7 @@ import DoctorAppointments from '@/components/DoctorAppointments.vue'
 const route = useRoute()
 const doctorStore = useDoctorStore()
 const profileStore = useProfileStore()
+const { getAccessTokenSilently } = useAuth0()
 const doctor = ref<Doctor | null>(null)
 const appointments = ref<Appointment[]>([])
 const { isAdmin } = storeToRefs(profileStore)
@@ -45,18 +47,14 @@ watch([doctor, isAdmin], async ([currentDoctor, admin]) => {
     return
   }
 
-  appointments.value = await doctorStore.getAppointments(currentDoctor.id)
+  const token = await getAccessTokenSilently()
+  appointments.value = await doctorStore.getAppointments(currentDoctor.id, token)
 }, { immediate: true })
-
-async function onAppointmentAdded() {
-  if (doctor.value && isAdmin.value) {
-    appointments.value = await doctorStore.getAppointments(doctor.value.id)
-  }
-}
 
 async function onAppointmentDeleted() {
   if (doctor.value && isAdmin.value) {
-    appointments.value = await doctorStore.getAppointments(doctor.value.id)
+    const token = await getAccessTokenSilently()
+    appointments.value = await doctorStore.getAppointments(doctor.value.id, token)
   }
 }
 </script>
@@ -130,7 +128,6 @@ async function onAppointmentDeleted() {
       v-if="isAdmin"
       :doctor-id="doctor.id"
       :appointments="appointments"
-      @added="onAppointmentAdded"
       @deleted="onAppointmentDeleted"
     />
   </section>

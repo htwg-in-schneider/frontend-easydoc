@@ -3,10 +3,12 @@ import { ref } from 'vue'
 
 const API_BASE = `${(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')}/api`
 
-export interface DoctorType {
+export interface Specialization {
   id: number
   name: string
 }
+
+export type DoctorType = Specialization
 
 export interface User {
   id: number
@@ -27,11 +29,15 @@ export interface User {
   city: string | null
   country: string | null
   role?: 'USER' | 'DOCTOR' | 'ADMIN' | null
-  doctorType: DoctorType | null
+  specialization?: Specialization | null
+  doctorType?: Specialization | null
 }
 
 export type Doctor = User
-export type DoctorPayload = Omit<User, 'id' | 'auth0Id'>
+export type DoctorPayload = Omit<User, 'id' | 'auth0Id'> & {
+  specialization?: Specialization | null
+  doctorType?: Specialization | null
+}
 
 export interface UserSummary {
   id: number
@@ -41,19 +47,39 @@ export interface UserSummary {
 
 export interface Appointment {
   id: number
-  date: string
-  time: string | null
+  startDateTime: string
+  endDateTime: string
+  status: 'BOOKED' | 'CANCELLED' | 'COMPLETED'
   price: number | null
+  reason: string | null
   doctor?: Doctor | null
+  patient?: UserSummary | null
   user?: UserSummary | null
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 export interface AppointmentPayload {
-  date: string
-  time: string | null
-  price: number | null
   doctorId: number
-  userId?: number | null
+  startDateTime: string
+  reason?: string | null
+  price?: number | null
+}
+
+export interface AvailabilitySlot {
+  startDateTime: string
+  endDateTime: string
+}
+
+export interface AvailabilityRule {
+  id?: number | null
+  doctorId?: number | null
+  dayOfWeek: string
+  startTime: string
+  endTime: string
+  slotDurationMinutes: number
+  bufferMinutes: number
+  enabled: boolean
 }
 
 export interface DoctorSearchFilters {
@@ -67,10 +93,35 @@ export interface DoctorSearchFilters {
 
 async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options)
+  const contentType = res.headers.get('content-type') || ''
+
   if (!res.ok) {
-    throw new Error(`Request failed: ${res.status} ${res.statusText}`)
+    const messageFromBody = async () => {
+      try {
+        if (contentType.includes('application/json')) {
+          const body = await res.json() as { message?: string; error?: string }
+          return body.message || body.error
+        }
+        const text = await res.text()
+        return text || undefined
+      } catch {
+        return undefined
+      }
+    }
+
+    const message = await messageFromBody()
+    throw new Error(message || `Request failed: ${res.status} ${res.statusText}`)
   }
-  return await res.json()
+
+  if (res.status === 204) {
+    return undefined as T
+  }
+
+  if (contentType.includes('application/json')) {
+    return await res.json()
+  }
+
+  return (await res.text()) as T
 }
 
 function jsonHeaders(token?: string) {
@@ -80,13 +131,50 @@ function jsonHeaders(token?: string) {
   }
 }
 
-function matchesDoctorType(doctor: User, doctorTypeFilter?: string) {
+function normalizeSpecialization(value: any): Specialization | null {
+  if (!value || (value.id === undefined && !value.name)) {
+    return null
+  }
+
+  return {
+    id: Number(value.id),
+    name: value.name ?? '',
+  }
+}
+
+function normalizeDoctor(doctor: any): Doctor {
+  const specialization = normalizeSpecialization(doctor.specialization ?? doctor.doctorType)
+  return {
+    ...doctor,
+    specialization,
+    doctorType: specialization,
+  }
+}
+
+function normalizeAppointment(appointment: any): Appointment {
+  const patient = appointment.patient ?? appointment.user ?? null
+  return {
+    ...appointment,
+    patient,
+    user: patient,
+  }
+}
+
+function normalizeAvailabilityRule(rule: any): AvailabilityRule {
+  return {
+    ...rule,
+    startTime: typeof rule.startTime === 'string' ? rule.startTime.slice(0, 5) : '09:00',
+    endTime: typeof rule.endTime === 'string' ? rule.endTime.slice(0, 5) : '17:00',
+  }
+}
+
+function matchesSpecialization(doctor: User, doctorTypeFilter?: string) {
   const filter = doctorTypeFilter?.trim().toLowerCase()
   if (!filter) return true
 
   return (
-    String(doctor.doctorType?.id ?? '').toLowerCase() === filter ||
-    (doctor.doctorType?.name ?? '').toLowerCase() === filter
+    String(doctor.specialization?.id ?? doctor.doctorType?.id ?? '').toLowerCase() === filter ||
+    (doctor.specialization?.name ?? doctor.doctorType?.name ?? '').toLowerCase() === filter
   )
 }
 
@@ -94,22 +182,22 @@ export function formatDoctorName(doctor: Pick<User, 'title' | 'firstName' | 'las
   return [doctor.title, doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
 }
 
-export function getDoctorTypeName(doctorType: DoctorType | null | undefined) {
+export function getDoctorTypeName(doctorType: Specialization | null | undefined) {
   return doctorType?.name || 'Fachrichtung unbekannt'
 }
 
 export const useDoctorStore = defineStore('doctors', () => {
   const doctors = ref<User[]>([])
-  const doctorTypes = ref<DoctorType[]>([])
+  const doctorTypes = ref<Specialization[]>([])
 
   async function fetchAll(): Promise<User[]> {
-    const data = await requestJson<User[]>(`${API_BASE}/doctors`)
-    doctors.value = Array.isArray(data) ? data : []
+    const data = await requestJson<any[]>(`${API_BASE}/doctors`)
+    doctors.value = (Array.isArray(data) ? data : []).map(normalizeDoctor)
     return doctors.value
   }
 
-  async function fetchDoctorTypes(): Promise<DoctorType[]> {
-    const data = await requestJson<DoctorType[]>(`${API_BASE}/doctor-types`)
+  async function fetchDoctorTypes(): Promise<Specialization[]> {
+    const data = await requestJson<Specialization[]>(`${API_BASE}/specializations`)
     doctorTypes.value = Array.isArray(data) ? data : []
     return doctorTypes.value
   }
@@ -132,9 +220,9 @@ export const useDoctorStore = defineStore('doctors', () => {
     if (filters.maxDistance !== undefined) params.set('maxDistance', String(filters.maxDistance))
 
     const query = params.toString()
-    const data = await requestJson<User[]>(`${API_BASE}/doctors${query ? `?${query}` : ''}`)
-    doctors.value = (Array.isArray(data) ? data : []).filter((doctor) => {
-      if (!matchesDoctorType(doctor, filters.doctorType)) return false
+    const data = await requestJson<any[]>(`${API_BASE}/doctors${query ? `?${query}` : ''}`)
+    doctors.value = (Array.isArray(data) ? data : []).map(normalizeDoctor).filter((doctor) => {
+      if (!matchesSpecialization(doctor, filters.doctorType)) return false
       if (filters.minRating && (doctor.rating === null || doctor.rating < filters.minRating)) return false
       if (filters.maxDistance && (doctor.distance === null || doctor.distance > filters.maxDistance)) return false
       return true
@@ -145,61 +233,115 @@ export const useDoctorStore = defineStore('doctors', () => {
   async function getById(id: number): Promise<User | null> {
     const res = await fetch(`${API_BASE}/doctors/${id}`)
     if (!res.ok) return null
-    return await res.json()
+    return normalizeDoctor(await res.json())
   }
 
   async function add(doctor: DoctorPayload, token?: string) {
+    const payload = {
+      ...doctor,
+      specialization: doctor.specialization ?? doctor.doctorType ?? null,
+    }
+    delete (payload as Partial<DoctorPayload>).doctorType
     await requestJson<User>(`${API_BASE}/doctors`, {
       method: 'POST',
       headers: jsonHeaders(token),
-      body: JSON.stringify(doctor),
+      body: JSON.stringify(payload),
     })
   }
 
   async function update(id: number, data: DoctorPayload, token?: string) {
+    const payload = {
+      ...data,
+      specialization: data.specialization ?? data.doctorType ?? null,
+    }
+    delete (payload as Partial<DoctorPayload>).doctorType
     await requestJson<User>(`${API_BASE}/doctors/${id}`, {
       method: 'PUT',
       headers: jsonHeaders(token),
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     })
   }
 
   async function remove(id: number, token?: string) {
-    await fetch(`${API_BASE}/doctors/${id}`, {
+    await requestJson<void>(`${API_BASE}/doctors/${id}`, {
       method: 'DELETE',
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     })
   }
 
-  async function getAppointments(doctorId: number): Promise<Appointment[]> {
-    const data = await requestJson<Appointment[]>(`${API_BASE}/appointments/doctor/${doctorId}`)
-    return Array.isArray(data) ? data : []
+  async function getAppointments(doctorId: number, token?: string): Promise<Appointment[]> {
+    const data = await requestJson<any[]>(`${API_BASE}/appointments/doctor/${doctorId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+    return (Array.isArray(data) ? data : []).map(normalizeAppointment)
   }
 
   async function getMyAppointments(token: string): Promise<Appointment[]> {
-    const data = await requestJson<Appointment[]>(`${API_BASE}/appointments/me`, {
+    const data = await requestJson<any[]>(`${API_BASE}/appointments/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
+    return (Array.isArray(data) ? data : []).map(normalizeAppointment)
+  }
+
+  async function getAllAppointments(token: string): Promise<Appointment[]> {
+    const data = await requestJson<any[]>(`${API_BASE}/appointments`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return (Array.isArray(data) ? data : []).map(normalizeAppointment)
+  }
+
+  async function getAvailability(doctorId: number, from: string, to: string): Promise<AvailabilitySlot[]> {
+    const params = new URLSearchParams({ from, to })
+    const data = await requestJson<AvailabilitySlot[]>(
+      `${API_BASE}/doctors/${doctorId}/availability?${params.toString()}`,
+    )
     return Array.isArray(data) ? data : []
   }
 
-  async function addAppointment(appointment: AppointmentPayload) {
-    await requestJson<Appointment>(`${API_BASE}/appointments`, {
+  async function getAvailabilityRules(doctorId: number, token?: string): Promise<AvailabilityRule[]> {
+    const data = await requestJson<AvailabilityRule[]>(`${API_BASE}/doctors/${doctorId}/availability-rules`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+    return (Array.isArray(data) ? data : []).map(normalizeAvailabilityRule)
+  }
+
+  async function saveAvailabilityRule(doctorId: number, rule: AvailabilityRule, token: string) {
+    const method = rule.id ? 'PUT' : 'POST'
+    const url = rule.id
+      ? `${API_BASE}/doctors/${doctorId}/availability-rules/${rule.id}`
+      : `${API_BASE}/doctors/${doctorId}/availability-rules`
+
+    return await requestJson<AvailabilityRule>(url, {
+      method,
+      headers: jsonHeaders(token),
+      body: JSON.stringify({
+        ...rule,
+        startTime: rule.startTime.length === 5 ? `${rule.startTime}:00` : rule.startTime,
+        endTime: rule.endTime.length === 5 ? `${rule.endTime}:00` : rule.endTime,
+      }),
+    })
+  }
+
+  async function removeAvailabilityRule(doctorId: number, ruleId: number, token: string) {
+    await requestJson<void>(`${API_BASE}/doctors/${doctorId}/availability-rules/${ruleId}`, {
+      method: 'DELETE',
+      headers: jsonHeaders(token),
+    })
+  }
+
+  async function bookAppointment(appointment: AppointmentPayload, token: string) {
+    return await requestJson<Appointment>(`${API_BASE}/appointments`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(token),
       body: JSON.stringify(appointment),
     })
   }
 
-  async function removeAppointment(id: number, token?: string) {
-    const res = await fetch(`${API_BASE}/appointments/${id}`, {
-      method: 'DELETE',
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  async function cancelAppointment(id: number, token: string) {
+    return await requestJson<Appointment>(`${API_BASE}/appointments/${id}/cancel`, {
+      method: 'PATCH',
+      headers: jsonHeaders(token),
     })
-
-    if (!res.ok) {
-      throw new Error(`Termin konnte nicht storniert werden: ${res.status} ${res.statusText}`)
-    }
   }
 
   return {
@@ -214,7 +356,12 @@ export const useDoctorStore = defineStore('doctors', () => {
     search,
     getAppointments,
     getMyAppointments,
-    addAppointment,
-    removeAppointment,
+    getAllAppointments,
+    getAvailability,
+    getAvailabilityRules,
+    saveAvailabilityRule,
+    removeAvailabilityRule,
+    bookAppointment,
+    cancelAppointment,
   }
 })

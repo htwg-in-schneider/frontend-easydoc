@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 
 export type UserRole = 'USER' | 'DOCTOR' | 'ADMIN'
 
-export interface DoctorTypeRef {
+export interface SpecializationRef {
   id?: number | null
   name?: string | null
 }
@@ -30,7 +30,8 @@ export interface BackendProfile {
   country?: string | null
   imageUrl?: string | null
   distance?: number | null
-  doctorType?: DoctorTypeRef | null
+  specialization?: SpecializationRef | null
+  doctorType?: SpecializationRef | null
 }
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
@@ -68,7 +69,13 @@ export const useProfileStore = defineStore('profile', () => {
         throw new Error(error.message || `Profile request failed: ${response.status}`)
       }
 
-      profile.value = await response.json() as BackendProfile
+      const data = await response.json() as BackendProfile
+      const specialization = data.specialization ?? data.doctorType ?? null
+      profile.value = {
+        ...data,
+        specialization,
+        doctorType: specialization,
+      }
       return profile.value
     } catch (error) {
       profile.value = null

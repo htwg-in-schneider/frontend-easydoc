@@ -72,7 +72,7 @@ function goToSlotSelection() {
         </div>
 
         <div class="booking-action">
-          <p class="action-text">Möchten Sie einen Termin bei diesem Arzt buchen?</p>
+          <p class="action-text">Möchten Sie einen freien Termin bei diesem Arzt buchen?</p>
           <button class="btn-book" @click="goToSlotSelection">Termin auswählen</button>
         </div>
       </div>

@@ -76,7 +76,7 @@ onMounted(async () => {
   }
   doctorId.value = id
   doctorTypeId.value = doctor.doctorType?.id ?? null
-  currentDoctorType.value = doctor.doctorType
+  currentDoctorType.value = doctor.doctorType ?? null
   form.value = {
     title: doctor.title,
     firstName: doctor.firstName,

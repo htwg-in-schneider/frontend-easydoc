@@ -32,7 +32,7 @@ function doctor(appointment: Appointment): Doctor | null {
 }
 
 function userName(appointment: Appointment) {
-  const user = appointment.user
+  const user = appointment.patient ?? appointment.user
   return [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Patient unbekannt'
 }
 
@@ -83,20 +83,19 @@ function canCancel(appointment: Appointment) {
   if (isAdmin.value) return true
   if (!profile.value?.id) return false
   if (isDoctor.value) return appointment.doctor?.id === profile.value.id
-  return appointment.user?.id === profile.value.id
+  const user = appointment.patient ?? appointment.user
+  return user?.id === profile.value.id
 }
 
-function formatDate(date: string) {
+function formatDate(dateTime: string) {
   return new Intl.DateTimeFormat('de-DE', {
     weekday: 'short',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-  }).format(new Date(`${date}T00:00:00`))
-}
-
-function formatTime(time: string | null) {
-  return time ? time.slice(0, 5) : 'Uhrzeit offen'
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(dateTime))
 }
 
 function formatPrice(price: number | null) {
@@ -104,7 +103,7 @@ function formatPrice(price: number | null) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(price)
 }
 
-async function onDelete(appointment: Appointment) {
+async function onCancel(appointment: Appointment) {
   const confirmed = await popup.showConfirmation({
     title: 'Termin stornieren',
     message: 'Möchten Sie diesen Termin wirklich stornieren?',
@@ -116,7 +115,7 @@ async function onDelete(appointment: Appointment) {
 
   try {
     const token = await getAccessTokenSilently()
-    await doctorStore.removeAppointment(appointment.id, token)
+    await doctorStore.cancelAppointment(appointment.id, token)
     expandedAppointmentId.value = null
     await loadAppointments()
   } catch (error) {
@@ -137,7 +136,13 @@ async function loadAppointments() {
   try {
     const token = await getAccessTokenSilently()
     await profileStore.load(token, true)
-    appointments.value = await doctorStore.getMyAppointments(token)
+    if (isAdmin.value) {
+      appointments.value = await doctorStore.getAllAppointments(token)
+    } else if (isDoctor.value && profile.value?.id) {
+      appointments.value = await doctorStore.getAppointments(profile.value.id, token)
+    } else {
+      appointments.value = await doctorStore.getMyAppointments(token)
+    }
   } catch (error) {
     appointments.value = []
     errorMessage.value = error instanceof Error ? error.message : 'Termine konnten nicht geladen werden.'
@@ -185,8 +190,7 @@ watch(isAuthenticated, (authenticated) => {
         >
           <div class="appointment-summary">
             <div class="appointment-date">
-              <span>{{ formatDate(appointment.date) }}</span>
-              <strong>{{ formatTime(appointment.time) }}</strong>
+              <span>{{ formatDate(appointment.startDateTime) }}</span>
             </div>
 
             <div class="appointment-info">
@@ -196,6 +200,10 @@ watch(isAuthenticated, (authenticated) => {
 
             <span v-if="formatPrice(appointment.price)" class="appointment-price">
               {{ formatPrice(appointment.price) }}
+            </span>
+
+            <span class="appointment-status" :class="`status-${appointment.status.toLowerCase()}`">
+              {{ appointment.status }}
             </span>
 
             <v-icon class="appointment-chevron" size="20">
@@ -228,10 +236,11 @@ watch(isAuthenticated, (authenticated) => {
 
               <div class="appointment-detail">
                 <span class="detail-label">Termin</span>
-                <span>{{ formatDate(appointment.date) }}</span>
-                <span>{{ formatTime(appointment.time) }}</span>
+                <span>{{ formatDate(appointment.startDateTime) }}</span>
+                <span>{{ new Date(appointment.startDateTime).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) }} - {{ new Date(appointment.endDateTime).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) }}</span>
                 <span v-if="formatPrice(appointment.price)">{{ formatPrice(appointment.price) }}</span>
                 <span v-if="isAdmin || isDoctor">Patient: {{ userName(appointment) }}</span>
+                <span>Status: {{ appointment.status }}</span>
               </div>
             </div>
 
@@ -240,7 +249,7 @@ watch(isAuthenticated, (authenticated) => {
                 v-if="canCancel(appointment)"
                 type="button"
                 class="btn-cancel"
-                @click.stop="onDelete(appointment)"
+                @click.stop="onCancel(appointment)"
               >
                 Termin stornieren
               </button>
