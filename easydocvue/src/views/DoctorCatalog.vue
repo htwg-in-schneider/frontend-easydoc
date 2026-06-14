@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRoute } from 'vue-router'
 import { useDoctorStore, type DoctorSearchFilters } from '@/stores/doctors'
 import { useProfileStore } from '@/stores/profile'
 import NavBar from '@/components/NavBar.vue'
@@ -8,20 +9,31 @@ import AppFooter from '@/components/AppFooter.vue'
 import DoctorCard from '@/components/DoctorCard.vue'
 import DoctorFilter from '@/components/DoctorFilter.vue'
 
+const route = useRoute()
 const doctorStore = useDoctorStore()
 const profileStore = useProfileStore()
 const { doctors } = storeToRefs(doctorStore)
 const { isAdmin } = storeToRefs(profileStore)
 
+const activeFilters = ref<DoctorSearchFilters>({
+  doctorType: (route.query.doctorType as string) || '',
+  city: (route.query.city as string) || '',
+})
+
 onMounted(async () => {
   try {
-    await doctorStore.fetchAll()
+    if (activeFilters.value.doctorType || activeFilters.value.city) {
+      await doctorStore.search(activeFilters.value)
+    } else {
+      await doctorStore.fetchAll()
+    }
   } catch (error) {
     console.error('Doctor loading failed', error)
   }
 })
 
 async function onFilter(filters: DoctorSearchFilters) {
+  activeFilters.value = filters
   try {
     await doctorStore.search(filters)
   } catch (error) {
@@ -41,10 +53,13 @@ async function onFilter(filters: DoctorSearchFilters) {
   </section>
 
   <div class="catalog-container">
-    <DoctorFilter @filter="onFilter" />
+    <DoctorFilter :initialFilters="activeFilters" @filter="onFilter" />
 
     <div class="catalog-actions">
-      <router-link class="btn btn-map" to="/doctors/map">
+      <router-link
+        class="btn btn-map"
+        :to="{ path: '/doctors/map', query: { doctorType: activeFilters.doctorType || undefined, city: activeFilters.city || undefined } }"
+      >
         🗺️ Kartenansicht
       </router-link>
       <router-link v-if="isAdmin" class="btn btn-primary" to="/doctor/create">

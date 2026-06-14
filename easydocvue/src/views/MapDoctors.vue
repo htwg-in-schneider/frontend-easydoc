@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useDoctorStore, formatDoctorName, getDoctorTypeName, type Doctor, type DoctorSearchFilters } from '@/stores/doctors'
 import DoctorFilter from '@/components/DoctorFilter.vue'
 import NavBar from '@/components/NavBar.vue'
@@ -9,13 +9,17 @@ import AppFooter from '@/components/AppFooter.vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
+const route = useRoute()
 const router = useRouter()
 const doctorStore = useDoctorStore()
 const { doctors } = storeToRefs(doctorStore)
 
 const mapContainer = ref<HTMLElement | null>(null)
 const selectedDoctor = ref<Doctor | null>(null)
-const activeFilters = ref<DoctorSearchFilters>({})
+const activeFilters = ref<DoctorSearchFilters>({
+  doctorType: (route.query.doctorType as string) || '',
+  city: (route.query.city as string) || '',
+})
 let map: L.Map | null = null
 const markerMap = new Map<number, L.Marker>()
 const markerPositionCache = new Map<string, [number, number]>()
@@ -257,10 +261,13 @@ onBeforeUnmount(() => {
   </section>
 
   <div class="map-page">
-    <DoctorFilter @filter="onFilter" />
+    <DoctorFilter :initialFilters="activeFilters" @filter="onFilter" />
 
     <div class="map-controls">
-      <router-link class="view-btn" to="/doctors">Listenansicht</router-link>
+      <router-link
+        class="view-btn"
+        :to="{ path: '/doctors', query: { doctorType: activeFilters.doctorType || undefined, city: activeFilters.city || undefined } }"
+      >Listenansicht</router-link>
     </div>
 
     <div class="map-layout">

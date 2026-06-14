@@ -1,30 +1,23 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
+import { useDoctorStore } from '@/stores/doctors'
 import bgImage from '@/assets/images/Background_City.svg'
 
 const router = useRouter()
+const doctorStore = useDoctorStore()
+const { doctorTypes, cities } = storeToRefs(doctorStore)
+
 const isTypeOpen = ref(false)
 const selectedType = ref('')
-const selectedCity = ref('Konstanz')
+const selectedCity = ref('')
 const isCityOpen = ref(false)
 const typeDropdownRef = ref<HTMLElement | null>(null)
 const cityDropdownRef = ref<HTMLElement | null>(null)
 
-const doctorTypes = [
-  { label: 'Hausarzt', value: 'Allgemeinmedizin' },
-  { label: 'Kardiologe', value: 'Kardiologie' },
-  { label: 'Dermatologe', value: 'Dermatologie' },
-  { label: 'Orthopäde', value: 'Orthopädie' },
-  { label: 'Neurologe', value: 'Neurologie' },
-  { label: 'HNO-Arzt', value: 'HNO' },
-  { label: 'Augenarzt', value: 'Augenheilkunde' },
-  { label: 'Frauenarzt', value: 'Gynäkologie' },
-]
-
-const cities = ['Konstanz', 'Radolfzell', 'Singen', 'Überlingen']
 const selectedTypeLabel = computed(() =>
-  doctorTypes.find((type) => type.value === selectedType.value)?.label || '',
+  doctorTypes.value.find((t) => t.name === selectedType.value)?.name || '',
 )
 
 function selectType(type: string) {
@@ -50,8 +43,16 @@ function onDocumentClick(event: MouseEvent) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
+  try {
+    await Promise.all([doctorStore.fetchDoctorTypes(), doctorStore.fetchCities()])
+    if (cities.value.length > 0) {
+      selectedCity.value = cities.value[0].name
+    }
+  } catch {
+    // Fallback: keine Auswahl vorbelegt
+  }
 })
 
 onBeforeUnmount(() => {
@@ -87,11 +88,11 @@ function handleFindDoctor() {
           <div v-if="isTypeOpen" class="select-popup">
             <button
               v-for="type in doctorTypes"
-              :key="type.value"
+              :key="type.id"
               type="button"
-              @click="selectType(type.value)"
+              @click="selectType(type.name)"
             >
-              {{ type.label }}
+              {{ type.name }}
             </button>
           </div>
         </div>
@@ -105,11 +106,11 @@ function handleFindDoctor() {
           <div v-if="isCityOpen" class="select-popup">
             <button
               v-for="city in cities"
-              :key="city"
+              :key="city.id"
               type="button"
-              @click="selectCity(city)"
+              @click="selectCity(city.name)"
             >
-              {{ city }}
+              {{ city.name }}
             </button>
           </div>
         </div>

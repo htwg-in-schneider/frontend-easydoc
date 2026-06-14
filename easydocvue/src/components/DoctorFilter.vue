@@ -3,23 +3,31 @@ import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useDoctorStore, type DoctorSearchFilters } from '@/stores/doctors'
 
+const props = defineProps<{
+  initialFilters?: DoctorSearchFilters
+}>()
+
 const emit = defineEmits<{
   filter: [filters: DoctorSearchFilters]
 }>()
 
 const doctorStore = useDoctorStore()
-const { doctorTypes } = storeToRefs(doctorStore)
+const { doctorTypes, cities } = storeToRefs(doctorStore)
 
-const searchName = ref('')
-const selectedType = ref('')
-const minRating = ref('')
-const maxDistance = ref('')
+const searchName = ref(props.initialFilters?.name || '')
+const selectedType = ref(props.initialFilters?.doctorType || '')
+const selectedCity = ref(props.initialFilters?.city || '')
+const minRating = ref(props.initialFilters?.minRating ? String(props.initialFilters.minRating) : '')
+const maxDistance = ref(props.initialFilters?.maxDistance ? String(props.initialFilters.maxDistance) : '')
 
 onMounted(async () => {
   try {
-    await doctorStore.fetchDoctorTypes()
+    await Promise.all([doctorStore.fetchDoctorTypes(), doctorStore.fetchCities()])
   } catch (error) {
-    console.error('Doctor type loading failed', error)
+    console.error('Filter data loading failed', error)
+  }
+  if (selectedType.value || selectedCity.value || searchName.value) {
+    onSearch()
   }
 })
 
@@ -27,6 +35,7 @@ function onSearch() {
   emit('filter', {
     name: searchName.value,
     doctorType: selectedType.value,
+    city: selectedCity.value,
     minRating: minRating.value ? Number(minRating.value) : undefined,
     maxDistance: maxDistance.value ? Number(maxDistance.value) : undefined,
   })
@@ -35,9 +44,10 @@ function onSearch() {
 function onReset() {
   searchName.value = ''
   selectedType.value = ''
+  selectedCity.value = ''
   minRating.value = ''
   maxDistance.value = ''
-  emit('filter', { name: '', doctorType: '' })
+  emit('filter', { name: '', doctorType: '', city: '' })
 }
 </script>
 
@@ -53,8 +63,15 @@ function onReset() {
 
     <select v-model="selectedType" class="filter-select" @change="onSearch">
       <option value="">Alle Fachrichtungen</option>
-      <option v-for="type in doctorTypes" :key="type.id" :value="String(type.id)">
+      <option v-for="type in doctorTypes" :key="type.id" :value="type.name">
         {{ type.name }}
+      </option>
+    </select>
+
+    <select v-model="selectedCity" class="filter-select" @change="onSearch">
+      <option value="">Alle Städte</option>
+      <option v-for="city in cities" :key="city.id" :value="city.name">
+        {{ city.name }}
       </option>
     </select>
 

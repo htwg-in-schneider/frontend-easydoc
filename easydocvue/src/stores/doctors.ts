@@ -186,9 +186,15 @@ export function getDoctorTypeName(doctorType: Specialization | null | undefined)
   return doctorType?.name || 'Fachrichtung unbekannt'
 }
 
+export interface City {
+  id: number
+  name: string
+}
+
 export const useDoctorStore = defineStore('doctors', () => {
   const doctors = ref<User[]>([])
   const doctorTypes = ref<Specialization[]>([])
+  const cities = ref<City[]>([])
 
   async function fetchAll(): Promise<User[]> {
     const data = await requestJson<any[]>(`${API_BASE}/doctors`)
@@ -200,6 +206,12 @@ export const useDoctorStore = defineStore('doctors', () => {
     const data = await requestJson<Specialization[]>(`${API_BASE}/specializations`)
     doctorTypes.value = Array.isArray(data) ? data : []
     return doctorTypes.value
+  }
+
+  async function fetchCities(): Promise<City[]> {
+    const data = await requestJson<City[]>(`${API_BASE}/cities`)
+    cities.value = Array.isArray(data) ? data : []
+    return cities.value
   }
 
   async function search(filters: DoctorSearchFilters): Promise<User[]> {
@@ -347,8 +359,10 @@ export const useDoctorStore = defineStore('doctors', () => {
   return {
     doctors,
     doctorTypes,
+    cities,
     fetchAll,
     fetchDoctorTypes,
+    fetchCities,
     getById,
     add,
     update,
