@@ -13,6 +13,16 @@ const popup = usePopupStore()
 const { profile, isLoading, errorMessage } = storeToRefs(profileStore)
 
 const isSaving = ref(false)
+const showAvatarPicker = ref(false)
+
+const avatarOptions = [1, 2, 3, 4, 5, 6].map(i =>
+  new URL(`../assets/images/profilbild_${i}.png`, import.meta.url).href
+)
+
+function selectAvatar(url: string) {
+  form.value.imageUrl = url
+  showAvatarPicker.value = false
+}
 
 const form = ref({
   firstName: '',
@@ -177,6 +187,9 @@ watch(isAuthenticated, (authenticated) => {
             <a v-if="profileImage" class="image-link" :href="profileImage" target="_blank" rel="noopener noreferrer">
               Bild öffnen
             </a>
+            <button type="button" class="change-avatar-btn" @click="showAvatarPicker = true">
+              Bild ändern
+            </button>
           </div>
         </div>
       </div>
@@ -210,10 +223,6 @@ watch(isAuthenticated, (authenticated) => {
             <input v-model="form.birthday" type="date">
           </label>
 
-          <label class="full-width">
-            Profilbild-URL
-            <input v-model="form.imageUrl" type="url" placeholder="https://...">
-          </label>
         </div>
 
         <div class="form-actions">
@@ -223,6 +232,31 @@ watch(isAuthenticated, (authenticated) => {
         </div>
       </form>
     </section>
+    <Transition name="fade">
+      <div v-if="showAvatarPicker" class="avatar-backdrop" @click.self="showAvatarPicker = false">
+        <div class="avatar-modal">
+          <div class="avatar-modal-header">
+            <span>Profilbild auswählen</span>
+            <button type="button" class="avatar-close" @click="showAvatarPicker = false">✕</button>
+          </div>
+          <div class="avatar-grid">
+            <button
+              v-for="(url, index) in avatarOptions"
+              :key="index"
+              type="button"
+              class="avatar-option"
+              :class="{ selected: form.imageUrl === url }"
+              @click="selectAvatar(url)"
+            >
+              <img :src="url" :alt="`Profilbild ${index + 1}`">
+            </button>
+          </div>
+          <div class="avatar-modal-footer">
+            <button type="button" class="btn-cancel" @click="showAvatarPicker = false">Abbrechen</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </main>
   <AppFooter />
 </template>
@@ -396,6 +430,133 @@ watch(isAuthenticated, (authenticated) => {
 .btn-primary:disabled {
   cursor: progress;
   opacity: 0.8;
+}
+
+.change-avatar-btn {
+  padding: 6px 14px;
+  border: 1px solid #155dfc;
+  border-radius: 999px;
+  background: transparent;
+  color: #155dfc;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.change-avatar-btn:hover {
+  background: #155dfc;
+  color: #fff;
+}
+
+.avatar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.avatar-modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  width: min(480px, 90vw);
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+}
+
+.avatar-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2a44;
+}
+
+.avatar-close {
+  border: none;
+  background: none;
+  font-size: 18px;
+  color: #64708a;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+}
+
+.avatar-close:hover {
+  color: #1f2a44;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.avatar-option {
+  border: 2px solid #d8e3f7;
+  border-radius: 12px;
+  padding: 6px;
+  background: #f7f9fc;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+  aspect-ratio: 1;
+  overflow: hidden;
+}
+
+.avatar-option img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.avatar-option:hover {
+  border-color: #155dfc;
+  transform: scale(1.04);
+}
+
+.avatar-option.selected {
+  border-color: #155dfc;
+  box-shadow: 0 0 0 3px rgba(21, 93, 252, 0.2);
+}
+
+.avatar-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.btn-cancel {
+  padding: 8px 20px;
+  border: 1px solid #d8e3f7;
+  border-radius: 10px;
+  background: transparent;
+  color: #64708a;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.btn-cancel:hover {
+  border-color: #155dfc;
+  color: #155dfc;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 @media (max-width: 640px) {
