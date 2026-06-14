@@ -16,8 +16,8 @@
         <h4>Hilfe &amp; Support</h4>
         <a href="#">FAQ</a>
         <a href="#">Kontakt</a>
-        <a href="#">Datenschutz</a>
-        <a href="#">Impressum</a>
+        <router-link to="/datenschutz">Datenschutz</router-link>
+        <router-link to="/impressum">Impressum</router-link>
       </nav>
 
       <address class="footer-column">

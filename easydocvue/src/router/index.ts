@@ -17,6 +17,8 @@ import EditUser from '@/views/EditUser.vue'
 import DoctorDashboard from '@/views/DoctorDashboard.vue'
 import SymptomAnalysis from '@/views/SymptomAnalysis.vue'
 import RoleRedirect from '@/views/RoleRedirect.vue'
+import Impressum from '@/views/Impressum.vue'
+import Datenschutz from '@/views/Datenschutz.vue'
 
 const routes = [
   { path: '/', component: Home },
@@ -41,6 +43,8 @@ const routes = [
   { path: '/doctor/dashboard', name: 'doctor-dashboard', component: DoctorDashboard, beforeEnter: authGuard },
   { path: '/symptom-analysis', name: 'symptom-analysis', component: SymptomAnalysis },
   { path: '/benutzerverwaltung', name: 'benutzerverwaltung', component: AdminUsers, beforeEnter: authGuard },
+  { path: '/impressum', name: 'impressum', component: Impressum },
+  { path: '/datenschutz', name: 'datenschutz', component: Datenschutz },
 ]
 
 const router = createRouter({
