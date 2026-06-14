@@ -5,18 +5,97 @@ import { storeToRefs } from 'pinia'
 import { useDoctorStore, type AvailabilityRule } from '@/stores/doctors'
 import { useProfileStore } from '@/stores/profile'
 import { usePopupStore } from '@/stores/popup'
+import { useServiceStore, type Dienstleistung } from '@/stores/services'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
 const doctorStore = useDoctorStore()
 const profileStore = useProfileStore()
 const popup = usePopupStore()
+const serviceStore = useServiceStore()
 const { profile } = storeToRefs(profileStore)
 const { getAccessTokenSilently } = useAuth0()
 
 const loading = ref(true)
 const saving = ref(false)
 const rules = ref<AvailabilityRule[]>([])
+
+// Services state
+const loadingServices = ref(false)
+const savingService = ref(false)
+const showAddForm = ref(false)
+const editingService = ref<Dienstleistung | null>(null)
+const newService = ref({ bezeichnung: '', preis: 0, scope: 'CUSTOM' as 'STANDARD' | 'CUSTOM' })
+
+function formatEur(value: number) {
+  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value)
+}
+
+async function loadServices() {
+  const currentDoctorId = profile.value?.id
+  if (!currentDoctorId) return
+  loadingServices.value = true
+  try {
+    await serviceStore.fetchForDoctor(currentDoctorId)
+  } finally {
+    loadingServices.value = false
+  }
+}
+
+async function addService() {
+  if (!newService.value.bezeichnung.trim()) return
+  savingService.value = true
+  try {
+    const token = await getAccessTokenSilently()
+    await serviceStore.create({ ...newService.value }, token)
+    newService.value = { bezeichnung: '', preis: 0, scope: 'CUSTOM' }
+    showAddForm.value = false
+    await popup.showMessage({ title: 'Leistung hinzugefügt', message: 'Die Leistung wurde gespeichert.', variant: 'success' })
+  } catch (error) {
+    await popup.showMessage({ title: 'Fehler', message: error instanceof Error ? error.message : 'Speichern fehlgeschlagen.', variant: 'danger' })
+  } finally {
+    savingService.value = false
+  }
+}
+
+async function saveServiceEdit() {
+  if (!editingService.value) return
+  savingService.value = true
+  try {
+    const token = await getAccessTokenSilently()
+    await serviceStore.update(editingService.value.id, {
+      bezeichnung: editingService.value.bezeichnung,
+      preis: editingService.value.preis,
+      scope: editingService.value.scope,
+    }, token)
+    editingService.value = null
+    await popup.showMessage({ title: 'Gespeichert', message: 'Leistung wurde aktualisiert.', variant: 'success' })
+  } catch (error) {
+    await popup.showMessage({ title: 'Fehler', message: error instanceof Error ? error.message : 'Speichern fehlgeschlagen.', variant: 'danger' })
+  } finally {
+    savingService.value = false
+  }
+}
+
+async function deleteService(id: number) {
+  const confirmed = await popup.showConfirmation({
+    title: 'Leistung löschen',
+    message: 'Möchten Sie diese Leistung wirklich löschen?',
+    confirmLabel: 'Löschen',
+    variant: 'danger',
+  })
+  if (!confirmed) return
+  try {
+    const token = await getAccessTokenSilently()
+    await serviceStore.remove(id, token)
+  } catch (error) {
+    await popup.showMessage({ title: 'Fehler', message: error instanceof Error ? error.message : 'Löschen fehlgeschlagen.', variant: 'danger' })
+  }
+}
+
+function startEdit(s: Dienstleistung) {
+  editingService.value = { ...s }
+}
 
 const weekdays = [
   { key: 'MONDAY', label: 'Montag' },
@@ -95,6 +174,7 @@ async function saveRules() {
 
 onMounted(async () => {
   await loadRules()
+  await loadServices()
 })
 </script>
 
@@ -135,6 +215,72 @@ onMounted(async () => {
           <input v-model.number="rule.slotDurationMinutes" type="number" min="5" step="5">
           <input v-model.number="rule.bufferMinutes" type="number" min="0" step="5">
         </div>
+      </div>
+    </section>
+    <!-- Services Section -->
+    <section class="dashboard-card services-card">
+      <header class="dashboard-header">
+        <div>
+          <h2>Meine Leistungen</h2>
+          <p>Verwalten Sie Ihre angebotenen Dienstleistungen und Preise.</p>
+        </div>
+        <button class="btn btn-primary" type="button" @click="showAddForm = !showAddForm">
+          {{ showAddForm ? 'Abbrechen' : '+ Neue Leistung' }}
+        </button>
+      </header>
+
+      <!-- Add form -->
+      <div v-if="showAddForm" class="service-form">
+        <input v-model="newService.bezeichnung" type="text" placeholder="Bezeichnung (z.B. Vorsorgeuntersuchung)" class="svc-input">
+        <input v-model.number="newService.preis" type="number" min="0" step="0.5" placeholder="Preis (€)" class="svc-input svc-input--sm">
+        <select v-model="newService.scope" class="svc-input svc-input--sm">
+          <option value="STANDARD">Standard</option>
+          <option value="CUSTOM">Benutzerdefiniert</option>
+        </select>
+        <button class="btn btn-primary" type="button" :disabled="savingService || !newService.bezeichnung.trim()" @click="addService">
+          {{ savingService ? 'Speichern...' : 'Hinzufügen' }}
+        </button>
+      </div>
+
+      <div v-if="loadingServices" class="message">Leistungen werden geladen...</div>
+      <div v-else-if="serviceStore.services.length === 0 && !showAddForm" class="message">Keine Leistungen vorhanden.</div>
+
+      <div v-else-if="serviceStore.services.length > 0" class="svc-table">
+        <div class="svc-row svc-head">
+          <span>Bezeichnung</span>
+          <span>Typ</span>
+          <span class="num">Preis</span>
+          <span></span>
+        </div>
+        <template v-for="s in serviceStore.services" :key="s.id">
+          <!-- Edit row -->
+          <div v-if="editingService?.id === s.id" class="svc-row svc-edit-row">
+            <input v-model="editingService.bezeichnung" type="text" class="svc-input">
+            <select v-model="editingService.scope" class="svc-input">
+              <option value="STANDARD">Standard</option>
+              <option value="CUSTOM">Benutzerdefiniert</option>
+            </select>
+            <input v-model.number="editingService.preis" type="number" min="0" step="0.5" class="svc-input num">
+            <div class="svc-actions">
+              <button class="btn btn-primary btn-sm" type="button" :disabled="savingService" @click="saveServiceEdit">
+                {{ savingService ? '...' : 'Speichern' }}
+              </button>
+              <button class="btn btn-secondary btn-sm" type="button" @click="editingService = null">Abbrechen</button>
+            </div>
+          </div>
+          <!-- Display row -->
+          <div v-else class="svc-row">
+            <span>{{ s.bezeichnung }}</span>
+            <span class="scope-badge" :class="s.scope === 'STANDARD' ? 'scope-std' : 'scope-cust'">
+              {{ s.scope === 'STANDARD' ? 'Standard' : 'Individuell' }}
+            </span>
+            <span class="num">{{ formatEur(s.preis) }}</span>
+            <div class="svc-actions">
+              <button class="btn btn-secondary btn-sm" type="button" @click="startEdit(s)">Bearbeiten</button>
+              <button class="btn btn-danger btn-sm" type="button" @click="deleteService(s.id)">Löschen</button>
+            </div>
+          </div>
+        </template>
       </div>
     </section>
   </main>
@@ -270,6 +416,129 @@ onMounted(async () => {
   padding: 28px 0;
   color: #64708a;
   text-align: center;
+}
+
+.services-card {
+  margin-top: 24px;
+}
+
+.services-card h2 {
+  margin: 0 0 8px;
+  color: #1f2a44;
+  font-size: 22px;
+}
+
+.service-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 16px;
+  background: #f8fbff;
+  border: 1px solid #d8e3f7;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.svc-input {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #c9d7ef;
+  border-radius: 8px;
+  font-size: 14px;
+  flex: 1 1 200px;
+}
+
+.svc-input--sm {
+  flex: 0 1 140px;
+}
+
+.svc-input.num {
+  text-align: right;
+  flex: 0 1 120px;
+}
+
+.svc-table {
+  display: grid;
+  gap: 8px;
+}
+
+.svc-row {
+  display: grid;
+  grid-template-columns: 1fr 130px 100px 200px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid #e3ebf7;
+  border-radius: 10px;
+}
+
+.svc-head {
+  background: #f8fbff;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64708a;
+  border-color: #e3ebf7;
+}
+
+.svc-edit-row {
+  background: #f8fbff;
+}
+
+.num {
+  text-align: right;
+}
+
+.svc-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.scope-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.scope-std {
+  background: #e8f0fe;
+  color: #155dfc;
+}
+
+.scope-cust {
+  background: #fef3e2;
+  color: #c47a10;
+}
+
+.btn-sm {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #b02a37;
+}
+
+.btn-secondary {
+  background: #f0f6fe;
+  color: #155dfc;
+  border: none;
+}
+
+.btn-secondary:hover {
+  background: #dce8fd;
 }
 
 @media (max-width: 900px) {

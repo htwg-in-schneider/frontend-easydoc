@@ -74,9 +74,9 @@ watch(isAuthenticated, async (authenticated) => {
     <div class="nav-links">
       <router-link class="nav-link" to="/">Startseite</router-link>
       <template v-if="isAdmin">
-        <router-link class="nav-link" to="/doctors">Ärzte</router-link>
         <router-link class="nav-link" to="/Benutzerverwaltung">Benutzer</router-link>
         <router-link class="nav-link" to="/my-bookings">{{ appointmentsLabel }}</router-link>
+        <router-link class="nav-link" to="/admin/revenue">Umsatz</router-link>
       </template>
       <template v-else-if="isDoctor">
         <router-link class="nav-link" to="/my-bookings">{{ appointmentsLabel }}</router-link>
@@ -111,6 +111,7 @@ watch(isAuthenticated, async (authenticated) => {
           <template v-if="isAdmin">
             <router-link class="dropdown-item" to="/Benutzerverwaltung" @click="closeMenu">Benutzer</router-link>
             <router-link class="dropdown-item" to="/my-bookings" @click="closeMenu">{{ appointmentsLabel }}</router-link>
+            <router-link class="dropdown-item" to="/admin/revenue" @click="closeMenu">Umsatz</router-link>
           </template>
           <template v-else-if="isDoctor">
             <router-link class="dropdown-item" to="/doctor/dashboard" @click="closeMenu">Kalender</router-link>

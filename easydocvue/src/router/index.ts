@@ -19,6 +19,7 @@ import SymptomAnalysis from '@/views/SymptomAnalysis.vue'
 import RoleRedirect from '@/views/RoleRedirect.vue'
 import Impressum from '@/views/Impressum.vue'
 import Datenschutz from '@/views/Datenschutz.vue'
+import AdminRevenue from '@/views/AdminRevenue.vue'
 
 const routes = [
   { path: '/', component: Home },
@@ -45,6 +46,7 @@ const routes = [
   { path: '/benutzerverwaltung', name: 'benutzerverwaltung', component: AdminUsers, beforeEnter: authGuard },
   { path: '/impressum', name: 'impressum', component: Impressum },
   { path: '/datenschutz', name: 'datenschutz', component: Datenschutz },
+  { path: '/admin/revenue', name: 'admin-revenue', component: AdminRevenue, beforeEnter: authGuard },
 ]
 
 const router = createRouter({

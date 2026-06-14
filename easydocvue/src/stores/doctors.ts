@@ -28,6 +28,7 @@ export interface User {
   postcode: string | null
   city: string | null
   country: string | null
+  consultationFee?: number
   role?: 'USER' | 'DOCTOR' | 'ADMIN' | null
   specialization?: Specialization | null
   doctorType?: Specialization | null
@@ -63,7 +64,7 @@ export interface AppointmentPayload {
   doctorId: number
   startDateTime: string
   reason?: string | null
-  price?: number | null
+  dienstleistungId?: number | null
 }
 
 export interface AvailabilitySlot {

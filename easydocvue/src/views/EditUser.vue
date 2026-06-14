@@ -47,6 +47,7 @@ const form = ref<BackendProfile>({
   country: '',
   imageUrl: '',
   distance: null,
+  consultationFee: null,
   doctorType: null,
 })
 
@@ -354,6 +355,11 @@ onMounted(loadUser)
       <div class="form-group">
         <label for="distance">Entfernung (km)</label>
         <input id="distance" type="number" v-model.number="form.distance" min="0" step="0.1">
+      </div>
+
+      <div v-if="isDoctorRole" class="form-group">
+        <label for="consultationFee">Honorar pro Termin (€)</label>
+        <input id="consultationFee" type="number" v-model.number="form.consultationFee" min="0" step="0.5">
       </div>
 
       <div class="form-group">

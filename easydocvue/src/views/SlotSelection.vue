@@ -6,6 +6,7 @@ import { storeToRefs } from 'pinia'
 import { formatDoctorName, getDoctorTypeName, type AvailabilitySlot, type Doctor, useDoctorStore } from '@/stores/doctors'
 import { useProfileStore } from '@/stores/profile'
 import { usePopupStore } from '@/stores/popup'
+import { useServiceStore, type Dienstleistung } from '@/stores/services'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
@@ -14,13 +15,24 @@ const route = useRoute()
 const doctorStore = useDoctorStore()
 const profileStore = useProfileStore()
 const popup = usePopupStore()
+const serviceStore = useServiceStore()
 const { profile } = storeToRefs(profileStore)
 const { isAuthenticated, loginWithRedirect, getAccessTokenSilently } = useAuth0()
 
 const doctor = ref<Doctor | null>(null)
 const loadingDoctor = ref(true)
 const loadingAvailability = ref(false)
+const loadingServices = ref(false)
 const booking = ref(false)
+const selectedServiceId = ref<number | null>(null)
+
+const selectedService = computed<Dienstleistung | null>(
+  () => serviceStore.services.find(s => s.id === selectedServiceId.value) ?? null,
+)
+
+function formatEur(value: number) {
+  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value)
+}
 const calendarOpen = ref(false)
 const visibleMonth = ref(startOfMonth(new Date()))
 const availabilitySlots = ref<AvailabilitySlot[]>([])
@@ -128,6 +140,17 @@ async function loadDoctor() {
 
   doctor.value = await doctorStore.getById(id)
   loadingDoctor.value = false
+
+  if (doctor.value) {
+    loadingServices.value = true
+    await serviceStore.fetchForDoctor(doctor.value.id).finally(() => {
+      loadingServices.value = false
+    })
+    if (serviceStore.services.length > 0) {
+      selectedServiceId.value = serviceStore.services[0].id
+    }
+  }
+
   return Boolean(doctor.value)
 }
 
@@ -275,7 +298,7 @@ async function confirmAppointment() {
         doctorId: doctor.value.id,
         startDateTime: selectedSlot.value,
         reason: 'Online gebuchter Termin',
-        price: null,
+        dienstleistungId: selectedServiceId.value,
       },
       token,
     )
@@ -357,6 +380,24 @@ onMounted(async () => {
         <div v-if="selectedSlotLabel" class="summary-box">
           <span class="summary-label">Ausgewählt</span>
           <strong>{{ selectedSlotLabel }}</strong>
+        </div>
+
+        <!-- Service Selection -->
+        <div v-if="!loadingServices && serviceStore.services.length > 0" class="service-section">
+          <p class="service-title">Leistung wählen</p>
+          <div class="service-grid">
+            <button
+              v-for="s in serviceStore.services"
+              :key="s.id"
+              type="button"
+              class="service-btn"
+              :class="{ selected: selectedServiceId === s.id }"
+              @click="selectedServiceId = s.id"
+            >
+              <span class="service-name">{{ s.bezeichnung }}</span>
+              <span class="service-price">{{ formatEur(s.preis) }}</span>
+            </button>
+          </div>
         </div>
 
         <div class="booking-actions">
@@ -469,8 +510,19 @@ onMounted(async () => {
               <div v-if="selectedSlot" class="confirmation-card">
                 <span class="summary-label">Ausgewählter Termin</span>
                 <strong>{{ selectedSlotLabel }}</strong>
-                <p>Wenn alles passt, können Sie den Termin direkt bestätigen.</p>
-                <button class="confirm-btn modal-confirm" type="button" :disabled="booking || !selectedSlot" @click="confirmAppointment">
+                <p v-if="selectedService" class="service-hint">
+                  Leistung: {{ selectedService.bezeichnung }} · {{ formatEur(selectedService.preis) }}
+                </p>
+                <p v-else-if="serviceStore.services.length > 0" class="service-hint service-hint--warn">
+                  Bitte zuerst eine Leistung auswählen.
+                </p>
+                <p v-else>Wenn alles passt, können Sie den Termin direkt bestätigen.</p>
+                <button
+                  class="confirm-btn modal-confirm"
+                  type="button"
+                  :disabled="booking || !selectedSlot || (serviceStore.services.length > 0 && !selectedServiceId)"
+                  @click="confirmAppointment"
+                >
                   {{ booking ? 'Buchung läuft...' : 'Termin bestätigen' }}
                 </button>
               </div>
@@ -955,6 +1007,71 @@ onMounted(async () => {
 .modal-confirm {
   width: 100%;
   margin-top: 6px;
+}
+
+.service-section {
+  margin-top: 20px;
+}
+
+.service-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64708a;
+}
+
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.service-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid #c9d7ef;
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.service-btn:hover {
+  border-color: #9cb7ee;
+  box-shadow: 0 4px 12px rgba(21, 93, 252, 0.08);
+}
+
+.service-btn.selected {
+  border-color: #155dfc;
+  background: #f0f6ff;
+  box-shadow: 0 0 0 2px rgba(21, 93, 252, 0.15);
+}
+
+.service-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2a44;
+}
+
+.service-price {
+  font-size: 13px;
+  color: #155dfc;
+  font-weight: 600;
+}
+
+.service-hint {
+  margin: 0;
+  font-size: 13px;
+  color: #64708a;
+}
+
+.service-hint--warn {
+  color: #e55a2b;
 }
 
 .modal-message {

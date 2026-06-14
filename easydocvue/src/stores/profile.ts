@@ -31,6 +31,7 @@ export interface BackendProfile {
   country?: string | null
   imageUrl?: string | null
   distance?: number | null
+  consultationFee?: number | null
   specialization?: SpecializationRef | null
   doctorType?: SpecializationRef | null
 }
@@ -46,45 +47,52 @@ export const useProfileStore = defineStore('profile', () => {
   const isLoading = ref(false)
   const errorMessage = ref('')
 
+  let _activeLoad: Promise<BackendProfile | null> | null = null
+
   const role = computed(() => profile.value?.role ?? null)
   const isAdmin = computed(() => role.value === 'ADMIN')
   const isDoctor = computed(() => role.value === 'DOCTOR')
   const isUser = computed(() => role.value === 'USER')
 
-  async function load(token: string, force = false) {
+  async function load(token: string, force = false): Promise<BackendProfile | null> {
     if (profile.value && !force) return profile.value
-    if (isLoading.value) return profile.value
+    if (_activeLoad) return _activeLoad
 
     isLoading.value = true
     errorMessage.value = ''
 
-    try {
-      const response = await fetch(`${API_BASE}/api/profile`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+    _activeLoad = (async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({})) as { message?: string }
-        throw new Error(error.message || `Profile request failed: ${response.status}`)
-      }
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({})) as { message?: string }
+          throw new Error(error.message || `Profile request failed: ${response.status}`)
+        }
 
-      const data = await response.json() as BackendProfile
-      const specialization = data.specialization ?? data.doctorType ?? null
-      profile.value = {
-        ...data,
-        specialization,
-        doctorType: specialization,
+        const data = await response.json() as BackendProfile
+        const specialization = data.specialization ?? data.doctorType ?? null
+        profile.value = {
+          ...data,
+          specialization,
+          doctorType: specialization,
+        }
+        return profile.value
+      } catch (error) {
+        profile.value = null
+        errorMessage.value = error instanceof Error ? error.message : 'Backend-Profil konnte nicht geladen werden'
+        return null
+      } finally {
+        isLoading.value = false
+        _activeLoad = null
       }
-      return profile.value
-    } catch (error) {
-      profile.value = null
-      errorMessage.value = error instanceof Error ? error.message : 'Backend-Profil konnte nicht geladen werden'
-      return null
-    } finally {
-      isLoading.value = false
-    }
+    })()
+
+    return _activeLoad
   }
 
   function clear() {
