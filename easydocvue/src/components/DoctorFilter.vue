@@ -19,6 +19,7 @@ const selectedType = ref(props.initialFilters?.doctorType || '')
 const selectedCity = ref(props.initialFilters?.city || '')
 const minRating = ref(props.initialFilters?.minRating ? String(props.initialFilters.minRating) : '')
 const maxDistance = ref(props.initialFilters?.maxDistance ? String(props.initialFilters.maxDistance) : '')
+const sortByEarliestSlot = ref(props.initialFilters?.sortByEarliestSlot ?? false)
 
 onMounted(async () => {
   try {
@@ -38,6 +39,7 @@ function onSearch() {
     city: selectedCity.value,
     minRating: minRating.value ? Number(minRating.value) : undefined,
     maxDistance: maxDistance.value ? Number(maxDistance.value) : undefined,
+    sortByEarliestSlot: sortByEarliestSlot.value,
   })
 }
 
@@ -47,7 +49,8 @@ function onReset() {
   selectedCity.value = ''
   minRating.value = ''
   maxDistance.value = ''
-  emit('filter', { name: '', doctorType: '', city: '' })
+  sortByEarliestSlot.value = false
+  emit('filter', { name: '', doctorType: '', city: '', sortByEarliestSlot: false })
 }
 </script>
 
@@ -91,6 +94,11 @@ function onReset() {
       <option value="5">📍 bis 5 km</option>
       <option value="10">📍 bis 10 km</option>
     </select>
+
+    <label class="filter-toggle">
+      <input type="checkbox" v-model="sortByEarliestSlot" @change="onSearch" />
+      <span>Frühester Termin</span>
+    </label>
 
     <button class="btn btn-primary" @click="onSearch">Suchen</button>
     <button class="btn btn-secondary" @click="onReset">Reset</button>
@@ -161,6 +169,30 @@ function onReset() {
 
 .btn-secondary:hover {
   background: #dce8fd;
+}
+
+.filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 16px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1f2a44;
+  background: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.filter-toggle input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: #155dfc;
+  cursor: pointer;
 }
 
 @media (max-width: 600px) {

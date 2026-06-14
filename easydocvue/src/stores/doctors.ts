@@ -89,6 +89,12 @@ export interface DoctorSearchFilters {
   status?: string
   minRating?: number
   maxDistance?: number
+  sortByEarliestSlot?: boolean
+}
+
+export interface EarliestAvailability {
+  doctorId: number
+  earliestSlot: string | null
 }
 
 async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
@@ -195,6 +201,7 @@ export const useDoctorStore = defineStore('doctors', () => {
   const doctors = ref<User[]>([])
   const doctorTypes = ref<Specialization[]>([])
   const cities = ref<City[]>([])
+  const earliestAvailability = ref<Map<number, string | null>>(new Map())
 
   async function fetchAll(): Promise<User[]> {
     const data = await requestJson<any[]>(`${API_BASE}/doctors`)
@@ -212,6 +219,22 @@ export const useDoctorStore = defineStore('doctors', () => {
     const data = await requestJson<City[]>(`${API_BASE}/cities`)
     cities.value = Array.isArray(data) ? data : []
     return cities.value
+  }
+
+  async function fetchEarliestAvailability(from?: string, to?: string): Promise<Map<number, string | null>> {
+    const params = new URLSearchParams()
+    if (from) params.set('from', from)
+    if (to) params.set('to', to)
+    const query = params.toString()
+    const data = await requestJson<EarliestAvailability[]>(
+      `${API_BASE}/doctors/earliest-availability${query ? `?${query}` : ''}`,
+    )
+    const map = new Map<number, string | null>()
+    for (const item of Array.isArray(data) ? data : []) {
+      map.set(item.doctorId, item.earliestSlot)
+    }
+    earliestAvailability.value = map
+    return map
   }
 
   async function search(filters: DoctorSearchFilters): Promise<User[]> {
@@ -360,9 +383,11 @@ export const useDoctorStore = defineStore('doctors', () => {
     doctors,
     doctorTypes,
     cities,
+    earliestAvailability,
     fetchAll,
     fetchDoctorTypes,
     fetchCities,
+    fetchEarliestAvailability,
     getById,
     add,
     update,

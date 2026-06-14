@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { useDoctorStore, type DoctorSearchFilters } from '@/stores/doctors'
@@ -12,8 +12,13 @@ import DoctorFilter from '@/components/DoctorFilter.vue'
 const route = useRoute()
 const doctorStore = useDoctorStore()
 const profileStore = useProfileStore()
-const { doctors } = storeToRefs(doctorStore)
+const { doctors, earliestAvailability } = storeToRefs(doctorStore)
 const { isAdmin } = storeToRefs(profileStore)
+
+function formatSlot(iso: string | null | undefined): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
 
 const activeFilters = ref<DoctorSearchFilters>({
   doctorType: (route.query.doctorType as string) || '',
@@ -32,10 +37,25 @@ onMounted(async () => {
   }
 })
 
+const sortedDoctors = computed(() => {
+  if (!activeFilters.value.sortByEarliestSlot) return doctors.value
+  return [...doctors.value].sort((a, b) => {
+    const aSlot = earliestAvailability.value.get(a.id) ?? null
+    const bSlot = earliestAvailability.value.get(b.id) ?? null
+    if (!aSlot && !bSlot) return 0
+    if (!aSlot) return 1
+    if (!bSlot) return -1
+    return aSlot < bSlot ? -1 : aSlot > bSlot ? 1 : 0
+  })
+})
+
 async function onFilter(filters: DoctorSearchFilters) {
   activeFilters.value = filters
   try {
     await doctorStore.search(filters)
+    if (filters.sortByEarliestSlot) {
+      await doctorStore.fetchEarliestAvailability()
+    }
   } catch (error) {
     console.error('Doctor search failed', error)
   }
@@ -68,12 +88,18 @@ async function onFilter(filters: DoctorSearchFilters) {
     </div>
 
     <div class="doctor-grid">
-      <div v-for="doctor in doctors" :key="doctor.id" class="doctor-col">
+      <div v-for="doctor in sortedDoctors" :key="doctor.id" class="doctor-col">
         <DoctorCard :doctor="doctor" />
+        <p v-if="activeFilters.sortByEarliestSlot" class="earliest-slot">
+          <template v-if="earliestAvailability.get(doctor.id)">
+            Frühester Termin: {{ formatSlot(earliestAvailability.get(doctor.id)) }}
+          </template>
+          <template v-else>Kein Termin verfügbar</template>
+        </p>
       </div>
     </div>
 
-    <p v-if="doctors.length === 0" class="no-results">Keine Ärzte gefunden.</p>
+    <p v-if="sortedDoctors.length === 0" class="no-results">Keine Ärzte gefunden.</p>
   </div>
 
   <AppFooter />

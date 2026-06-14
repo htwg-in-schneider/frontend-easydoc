@@ -12,7 +12,12 @@ import 'leaflet/dist/leaflet.css'
 const route = useRoute()
 const router = useRouter()
 const doctorStore = useDoctorStore()
-const { doctors } = storeToRefs(doctorStore)
+const { doctors, earliestAvailability } = storeToRefs(doctorStore)
+
+function formatSlot(iso: string | null | undefined): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
 
 const mapContainer = ref<HTMLElement | null>(null)
 const selectedDoctor = ref<Doctor | null>(null)
@@ -25,8 +30,80 @@ const markerMap = new Map<number, L.Marker>()
 const markerPositionCache = new Map<string, [number, number]>()
 let renderVersion = 0
 
-// Default center: Konstanz Petershausen
-const defaultCenter: [number, number] = [47.6725, 9.1732]
+// Fallback center when city is unknown
+const defaultCenter: [number, number] = [47.6602, 9.1755]
+
+const cityCoordinates: Record<string, [number, number]> = {
+  'Konstanz': [47.6602, 9.1755],
+  'Radolfzell': [47.7369, 9.0867],
+  'Radolfzell am Bodensee': [47.7369, 9.0867],
+  'Singen': [47.7601, 8.8401],
+  'Singen (Hohentwiel)': [47.7601, 8.8401],
+  'Kreuzlingen': [47.6484, 9.1713],
+  'Überlingen': [47.7691, 9.1667],
+  'Stockach': [47.8543, 9.0105],
+}
+
+function getCityCenter(doctor: Doctor): [number, number] {
+  const name = doctor.city?.trim()
+  return (name && cityCoordinates[name]) ? cityCoordinates[name] : defaultCenter
+}
+
+// Geocoding via Nominatim (OpenStreetMap) — results cached in sessionStorage
+const GEOCODE_CACHE_KEY = 'easydoc_geocode_v1'
+
+function loadGeoCache(): Record<string, [number, number]> {
+  try { return JSON.parse(sessionStorage.getItem(GEOCODE_CACHE_KEY) ?? '{}') }
+  catch { return {} }
+}
+
+function saveGeoCache(cache: Record<string, [number, number]>) {
+  try { sessionStorage.setItem(GEOCODE_CACHE_KEY, JSON.stringify(cache)) }
+  catch {}
+}
+
+const geoCache = loadGeoCache()
+const geocodedPositions = new Map<number, [number, number]>()
+
+function doctorAddressKey(doctor: Doctor): string {
+  return [doctor.street, doctor.postcode, doctor.city, doctor.country].filter(Boolean).join(', ')
+}
+
+async function geocodeDoctor(doctor: Doctor): Promise<void> {
+  if (geocodedPositions.has(doctor.id)) return
+  const key = doctorAddressKey(doctor)
+  if (!key) return
+  if (geoCache[key]) {
+    geocodedPositions.set(doctor.id, geoCache[key])
+    markerMap.get(doctor.id)?.setLatLng(geoCache[key])
+    return
+  }
+  try {
+    const params = new URLSearchParams({ q: key, format: 'json', limit: '1' })
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+      headers: { 'User-Agent': 'EasyDoc-Student-Project/1.0' },
+    })
+    if (!res.ok) return
+    const data: Array<{ lat: string; lon: string }> = await res.json()
+    if (!data.length) return
+    const coords: [number, number] = [parseFloat(data[0].lat), parseFloat(data[0].lon)]
+    geoCache[key] = coords
+    saveGeoCache(geoCache)
+    geocodedPositions.set(doctor.id, coords)
+    markerMap.get(doctor.id)?.setLatLng(coords)
+  } catch {}
+}
+
+let geocodeJobId = 0
+
+async function startGeocodingDoctors(doctors: Doctor[]) {
+  const myJobId = ++geocodeJobId
+  for (const doctor of doctors) {
+    if (geocodeJobId !== myJobId) return
+    await geocodeDoctor(doctor)
+    await new Promise<void>(resolve => setTimeout(resolve, 350))
+  }
+}
 
 function normalized(value: string | number | null | undefined) {
   return String(value ?? '').trim().toLowerCase()
@@ -75,14 +152,20 @@ const filteredDoctors = computed(() => {
   return doctors.value
     .filter((doctor) => matchesFilters(doctor, filters))
     .sort((a, b) => {
+      if (filters.sortByEarliestSlot) {
+        const aSlot = earliestAvailability.value.get(a.id) ?? null
+        const bSlot = earliestAvailability.value.get(b.id) ?? null
+        if (!aSlot && !bSlot) return 0
+        if (!aSlot) return 1
+        if (!bSlot) return -1
+        return aSlot < bSlot ? -1 : aSlot > bSlot ? 1 : 0
+      }
       const aDistance = a.distance ?? Number.POSITIVE_INFINITY
       const bDistance = b.distance ?? Number.POSITIVE_INFINITY
       if (aDistance !== bDistance) return aDistance - bDistance
-
       const aRating = a.rating ?? 0
       const bRating = b.rating ?? 0
       if (aRating !== bRating) return bRating - aRating
-
       return formatDoctorName(a).localeCompare(formatDoctorName(b))
     })
 })
@@ -97,37 +180,31 @@ function hashString(value: string) {
 }
 
 function getDoctorMarkerCoords(doctor: Doctor): [number, number] {
-  const cacheKey = [
-    doctor.id,
-    doctor.street,
-    doctor.postcode,
-    doctor.city,
-    doctor.country,
-    doctor.distance,
-  ]
-    .filter((value) => value !== null && value !== undefined && String(value).trim() !== '')
-    .join('|')
+  // Prefer real geocoded position (in-memory or sessionStorage cache)
+  const geocoded = geocodedPositions.get(doctor.id)
+  if (geocoded) return geocoded
+  const addressKey = doctorAddressKey(doctor)
+  if (addressKey && geoCache[addressKey]) {
+    geocodedPositions.set(doctor.id, geoCache[addressKey])
+    return geoCache[addressKey]
+  }
 
+  // Fallback: deterministic hash-based offset around the city center
+  const cacheKey = `${doctor.id}|${doctor.street}|${doctor.postcode}|${doctor.city}`
   const cached = markerPositionCache.get(cacheKey)
   if (cached) return cached
 
   const hash = hashString(cacheKey || String(doctor.id))
   const angle = (hash % 360) * (Math.PI / 180)
-
-  const baseRadiusKm = doctor.distance !== null && doctor.distance !== undefined
-    ? Math.max(0.6, Math.min(doctor.distance, 8))
-    : 1.8 + ((hash % 5) * 0.4)
-
-  const jitterKm = ((hash % 100) / 100) * 0.45
-  const radiusKm = baseRadiusKm + jitterKm
+  const localRadiusKm = 0.3 + ((hash % 100) / 100) * 1.2
+  const center = getCityCenter(doctor)
   const latitudeScale = 1 / 111
-  const longitudeScale = 1 / (111 * Math.cos(defaultCenter[0] * Math.PI / 180))
+  const longitudeScale = 1 / (111 * Math.cos(center[0] * Math.PI / 180))
 
   const coords: [number, number] = [
-    defaultCenter[0] + Math.sin(angle) * radiusKm * latitudeScale,
-    defaultCenter[1] + Math.cos(angle) * radiusKm * longitudeScale,
+    center[0] + Math.sin(angle) * localRadiusKm * latitudeScale,
+    center[1] + Math.cos(angle) * localRadiusKm * longitudeScale,
   ]
-
   markerPositionCache.set(cacheKey, coords)
   return coords
 }
@@ -213,6 +290,9 @@ async function renderMarkers() {
   } else {
     map.setView(defaultCenter, 12)
   }
+
+  // Geocode addresses in the background; markers update in place as results arrive
+  startGeocodingDoctors(filteredDoctors.value)
 }
 
 function selectDoctor(doctor: Doctor) {
@@ -230,9 +310,16 @@ function selectDoctor(doctor: Doctor) {
   })
 }
 
-function onFilter(filters: DoctorSearchFilters) {
+async function onFilter(filters: DoctorSearchFilters) {
   activeFilters.value = filters
   selectedDoctor.value = null
+  if (filters.sortByEarliestSlot) {
+    try {
+      await doctorStore.fetchEarliestAvailability()
+    } catch (error) {
+      console.error('Earliest availability loading failed', error)
+    }
+  }
 }
 
 function goToDetail(doctorId: number) {
@@ -292,6 +379,12 @@ onBeforeUnmount(() => {
                 📍 {{ doctor.distance }} km
               </span>
             </div>
+            <p v-if="activeFilters.sortByEarliestSlot" class="sidebar-earliest">
+              <template v-if="earliestAvailability.get(doctor.id)">
+                Frühester Termin: {{ formatSlot(earliestAvailability.get(doctor.id)) }}
+              </template>
+              <template v-else>Kein Termin verfügbar</template>
+            </p>
             <p v-if="doctor.street" class="sidebar-address">{{ doctor.street }}, {{ doctor.city }}</p>
             <button class="btn-book" @click.stop="goToDetail(doctor.id)">Termin buchen</button>
           </div>
@@ -423,6 +516,13 @@ onBeforeUnmount(() => {
   font-size: 13px;
   color: #777;
   margin: 4px 0 12px;
+}
+
+.sidebar-earliest {
+  font-size: 12px;
+  color: #155dfc;
+  font-weight: 600;
+  margin: 4px 0 8px;
 }
 
 .btn-book {
