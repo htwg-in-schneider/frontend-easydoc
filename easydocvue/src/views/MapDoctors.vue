@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useDoctorStore, formatDoctorName, getDoctorTypeName, type Doctor, type DoctorSearchFilters } from '@/stores/doctors'
+import { buildDoctorQuery, matchesDoctorFilters, normalizeSelection } from '@/utils/doctorFilters'
 import DoctorFilter from '@/components/DoctorFilter.vue'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
@@ -22,8 +23,8 @@ function formatSlot(iso: string | null | undefined): string {
 const mapContainer = ref<HTMLElement | null>(null)
 const selectedDoctor = ref<Doctor | null>(null)
 const activeFilters = ref<DoctorSearchFilters>({
-  doctorType: (route.query.doctorType as string) || '',
-  city: (route.query.city as string) || '',
+  doctorType: normalizeSelection(route.query.doctorType),
+  city: normalizeSelection(route.query.city),
 })
 let map: L.Map | null = null
 const markerMap = new Map<number, L.Marker>()
@@ -105,52 +106,10 @@ async function startGeocodingDoctors(doctors: Doctor[]) {
   }
 }
 
-function normalized(value: string | number | null | undefined) {
-  return String(value ?? '').trim().toLowerCase()
-}
-
-function matchesFilters(doctor: Doctor, filters: DoctorSearchFilters) {
-  const term = normalized(filters.name)
-  const practice = normalized(doctor.practiceName)
-  const firstName = normalized(doctor.firstName)
-  const lastName = normalized(doctor.lastName)
-  const email = normalized(doctor.email)
-  const status = normalized(doctor.status)
-  const specializationName = normalized(doctor.specialization?.name ?? doctor.doctorType?.name)
-  const city = normalized(doctor.city)
-
-  const matchesName =
-    !term ||
-    [firstName, lastName, practice, email, status, specializationName]
-      .some((value) => value.includes(term))
-
-  const filterType = normalized(filters.doctorType)
-  const matchesType =
-    !filterType ||
-    normalized(doctor.specialization?.id ?? doctor.doctorType?.id).includes(filterType) ||
-    specializationName.includes(filterType)
-
-  const matchesRating =
-    filters.minRating === undefined ||
-    filters.minRating === null ||
-    doctor.rating === null ||
-    doctor.rating >= filters.minRating
-
-  const matchesDistance =
-    filters.maxDistance === undefined ||
-    filters.maxDistance === null ||
-    doctor.distance === null ||
-    doctor.distance <= filters.maxDistance
-
-  const matchesCity = !filters.city || city.includes(normalized(filters.city))
-
-  return matchesName && matchesType && matchesRating && matchesDistance && matchesCity
-}
-
 const filteredDoctors = computed(() => {
   const filters = activeFilters.value
   return doctors.value
-    .filter((doctor) => matchesFilters(doctor, filters))
+    .filter((doctor) => matchesDoctorFilters(doctor, filters))
     .sort((a, b) => {
       if (filters.sortByEarliestSlot) {
         const aSlot = earliestAvailability.value.get(a.id) ?? null
@@ -227,6 +186,9 @@ function buildPopupContent(doctor: Doctor): string {
 onMounted(async () => {
   try {
     await doctorStore.fetchAll()
+    if (activeFilters.value.sortByEarliestSlot) {
+      await doctorStore.fetchEarliestAvailability()
+    }
   } catch (error) {
     console.error('Doctor loading failed', error)
   }
@@ -348,13 +310,17 @@ onBeforeUnmount(() => {
   </section>
 
   <div class="map-page">
-    <DoctorFilter :initialFilters="activeFilters" @filter="onFilter" />
+    <div class="map-toolbar">
+      <DoctorFilter :initialFilters="activeFilters" @filter="onFilter" />
 
-    <div class="map-controls">
-      <router-link
-        class="view-btn"
-        :to="{ path: '/doctors', query: { doctorType: activeFilters.doctorType || undefined, city: activeFilters.city || undefined } }"
-      >Listenansicht</router-link>
+      <div class="view-switch-row">
+        <router-link
+          class="view-switch-btn"
+          :to="{ path: '/doctors', query: buildDoctorQuery(activeFilters) }"
+        >
+          Listenansicht
+        </router-link>
+      </div>
     </div>
 
     <div class="map-layout">
@@ -427,35 +393,46 @@ onBeforeUnmount(() => {
   max-width: 1400px;
   margin: 0 auto;
   padding: 20px;
+  overflow: visible;
 }
 
-.map-controls {
+.map-toolbar {
+  max-width: 1200px;
+  margin: 20px auto 24px;
+}
+
+.view-switch-row {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  justify-content: center;
+  margin-bottom: 24px;
 }
 
-.view-btn {
+.view-switch-btn {
   display: inline-flex;
   align-items: center;
-  padding: 10px 20px;
+  justify-content: center;
+  width: 220px;
+  height: 48px;
+  padding: 0 24px;
   border-radius: 10px;
-  background: #155dfc;
+  background: #1e293b;
   color: #fff;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
   text-decoration: none;
   transition: background 0.3s;
 }
 
-.view-btn:hover {
-  background: #0f4ad4;
+.view-switch-btn:hover {
+  background: #334155;
 }
 
 .map-layout {
   display: flex;
   gap: 20px;
   height: 600px;
+  position: relative;
+  z-index: 1;
 }
 
 .doctor-sidebar {
@@ -567,6 +544,10 @@ onBeforeUnmount(() => {
 
   .map-area {
     height: 400px;
+  }
+
+  .view-switch-btn {
+    width: 100%;
   }
 }
 </style>

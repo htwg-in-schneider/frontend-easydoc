@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { normalizeSelection } from '@/utils/doctorFilters'
 
 const API_BASE = `${(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')}/api`
 
@@ -85,8 +86,8 @@ export interface AvailabilityRule {
 
 export interface DoctorSearchFilters {
   name?: string
-  doctorType?: string
-  city?: string
+  doctorType?: string | string[]
+  city?: string | string[]
   status?: string
   minRating?: number
   maxDistance?: number
@@ -241,24 +242,25 @@ export const useDoctorStore = defineStore('doctors', () => {
   async function search(filters: DoctorSearchFilters): Promise<User[]> {
     const params = new URLSearchParams()
     const name = filters.name?.trim()
-    const city = filters.city?.trim()
+    const city = normalizeSelection(filters.city)
     const status = filters.status?.trim()
-    const doctorType = filters.doctorType?.trim()
+    const doctorType = normalizeSelection(filters.doctorType)
+    const primaryDoctorType = doctorType[0]
 
     if (name) {
       params.set('firstName', name)
       params.set('lastName', name)
     }
-    if (city) params.set('city', city)
+    if (city.length > 0) params.set('city', city.join(','))
     if (status) params.set('status', status)
-    if (doctorType) params.set('doctorType', doctorType)
+    if (doctorType.length > 0) params.set('doctorType', doctorType.join(','))
     if (filters.minRating !== undefined) params.set('minRating', String(filters.minRating))
     if (filters.maxDistance !== undefined) params.set('maxDistance', String(filters.maxDistance))
 
     const query = params.toString()
     const data = await requestJson<any[]>(`${API_BASE}/doctors${query ? `?${query}` : ''}`)
     doctors.value = (Array.isArray(data) ? data : []).map(normalizeDoctor).filter((doctor) => {
-      if (!matchesSpecialization(doctor, filters.doctorType)) return false
+      if (!matchesSpecialization(doctor, primaryDoctorType)) return false
       if (filters.minRating && (doctor.rating === null || doctor.rating < filters.minRating)) return false
       if (filters.maxDistance && (doctor.distance === null || doctor.distance > filters.maxDistance)) return false
       return true

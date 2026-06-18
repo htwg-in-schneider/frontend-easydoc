@@ -1,71 +1,37 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useDoctorStore } from '@/stores/doctors'
+import { buildDoctorQuery, normalizeSelection } from '@/utils/doctorFilters'
+import MultiSelectDropdown from '@/components/MultiSelectDropdown.vue'
 import bgImage from '@/assets/images/Background_City.svg'
 
 const router = useRouter()
 const doctorStore = useDoctorStore()
 const { doctorTypes, cities } = storeToRefs(doctorStore)
 
-const isTypeOpen = ref(false)
-const selectedType = ref('')
-const selectedCity = ref('')
-const isCityOpen = ref(false)
-const typeDropdownRef = ref<HTMLElement | null>(null)
-const cityDropdownRef = ref<HTMLElement | null>(null)
-
-const selectedTypeLabel = computed(() =>
-  doctorTypes.value.find((t) => t.name === selectedType.value)?.name || '',
-)
-
-function selectType(type: string) {
-  selectedType.value = type
-  isTypeOpen.value = false
-}
-
-function selectCity(city: string) {
-  selectedCity.value = city
-  isCityOpen.value = false
-}
-
-function onDocumentClick(event: MouseEvent) {
-  if (!event.target) return
-  const target = event.target as Node
-
-  if (typeDropdownRef.value && !typeDropdownRef.value.contains(target)) {
-    isTypeOpen.value = false
-  }
-
-  if (cityDropdownRef.value && !cityDropdownRef.value.contains(target)) {
-    isCityOpen.value = false
-  }
-}
+const selectedTypes = ref<string[]>([])
+const selectedCities = ref<string[]>([])
 
 onMounted(async () => {
-  document.addEventListener('click', onDocumentClick)
   try {
-    await Promise.all([doctorStore.fetchDoctorTypes(), doctorStore.fetchCities()])
-    if (cities.value.length > 0) {
-      selectedCity.value = cities.value[0].name
-    }
+    await Promise.all([
+      doctorTypes.value.length === 0 ? doctorStore.fetchDoctorTypes() : Promise.resolve(),
+      cities.value.length === 0 ? doctorStore.fetchCities() : Promise.resolve(),
+    ])
   } catch {
     // Fallback: keine Auswahl vorbelegt
   }
 })
 
-onBeforeUnmount(() => {
-  document.removeEventListener('click', onDocumentClick)
-})
-
 function handleFindDoctor() {
   router.push({
     path: '/doctors/map',
-    query: {
-      ...(selectedType.value ? { doctorType: selectedType.value } : {}),
-      ...(selectedCity.value ? { city: selectedCity.value } : {}),
-    },
+    query: buildDoctorQuery({
+      doctorType: normalizeSelection(selectedTypes.value),
+      city: normalizeSelection(selectedCities.value),
+    }),
   })
 }
 </script>
@@ -79,41 +45,23 @@ function handleFindDoctor() {
 
     <div class="arzt-finden-box">
       <div class="suchfelder">
-        <div ref="typeDropdownRef" class="search-field custom-select">
-          <button type="button" class="select-trigger" @click="isTypeOpen = !isTypeOpen">
-            {{ selectedTypeLabel || 'Arzt-Typ auswählen' }}
-            <span>⌄</span>
-          </button>
+        <MultiSelectDropdown
+          v-model="selectedTypes"
+          class="search-field"
+          variant="hero"
+          placeholder="Arzt-Typ auswählen"
+          :options="doctorTypes.map((type) => ({ value: type.name, label: type.name }))"
+          style="width: min(100%, 400px); height: 55px;"
+        />
 
-          <div v-if="isTypeOpen" class="select-popup">
-            <button
-              v-for="type in doctorTypes"
-              :key="type.id"
-              type="button"
-              @click="selectType(type.name)"
-            >
-              {{ type.name }}
-            </button>
-          </div>
-        </div>
-
-        <div ref="cityDropdownRef" class="search-field custom-select">
-          <button type="button" class="select-trigger" @click="isCityOpen = !isCityOpen">
-            {{ selectedCity }}
-            <span>⌄</span>
-          </button>
-
-          <div v-if="isCityOpen" class="select-popup">
-            <button
-              v-for="city in cities"
-              :key="city.id"
-              type="button"
-              @click="selectCity(city.name)"
-            >
-              {{ city.name }}
-            </button>
-          </div>
-        </div>
+        <MultiSelectDropdown
+          v-model="selectedCities"
+          class="search-field"
+          variant="hero"
+          placeholder="Ort auswählen"
+          :options="cities.map((city) => ({ value: city.name, label: city.name }))"
+          style="width: min(100%, 400px); height: 55px;"
+        />
       </div>
 
       <div class="arzt-finden">
@@ -204,67 +152,6 @@ function handleFindDoctor() {
   gap: 20px;
   width: 100%;
   justify-content: center;
-}
-
-.search-field {
-  height: 55px;
-  border-radius: 10px;
-  width: 400px;
-  max-width: 45%;
-  border: 1px solid #d8e3f7;
-  padding: 0 16px;
-  font-size: 16px;
-  color: #1f2a44;
-  background: #ffffff;
-}
-
-.custom-select {
-  position: relative;
-  padding: 0;
-}
-
-.select-trigger {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  color: #1f2a44;
-  font: inherit;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-}
-
-.select-popup {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 10;
-  display: grid;
-  width: 100%;
-  padding: 8px;
-  background: #ffffff;
-  border: 1px solid #d8e3f7;
-  border-radius: 10px;
-  box-shadow: 0 16px 34px rgba(24, 58, 150, 0.18);
-}
-
-.select-popup button {
-  padding: 10px 12px;
-  color: #26334d;
-  font: inherit;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.select-popup button:hover {
-  color: #155dfc;
-  background: #eef3fb;
 }
 
 .btn-find-doctor {

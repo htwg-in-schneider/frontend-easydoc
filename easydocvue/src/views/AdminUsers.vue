@@ -1,26 +1,44 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { useRouter } from 'vue-router'
 import { API_BASE, roleRedirectPath, useProfileStore, type BackendProfile } from '@/stores/profile'
+import { useDoctorStore, type City } from '@/stores/doctors'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
 const router = useRouter()
 const { getAccessTokenSilently } = useAuth0()
 const profileStore = useProfileStore()
+const doctorStore = useDoctorStore()
+const { cities } = storeToRefs(doctorStore)
 
 const users = ref<BackendProfile[]>([])
 const search = ref('')
-const cityFilter = ref('')
+const selectedCities = ref<string[]>([])
+const selectedRoles = ref<string[]>([])
+const isCityOpen = ref(false)
+const isRoleOpen = ref(false)
+const cityDropdownRef = ref<HTMLElement | null>(null)
+const roleDropdownRef = ref<HTMLElement | null>(null)
 const message = ref('')
 const isLoading = ref(false)
 
+const roleOptions = [
+  { value: 'USER', label: 'User' },
+  { value: 'DOCTOR', label: 'Doktor' },
+  { value: 'ADMIN', label: 'Admin' },
+] as const
+
 const filteredUsers = computed(() => {
   const term = search.value.trim().toLowerCase()
-  const city = cityFilter.value.trim().toLowerCase()
+  const selectedCitySet = new Set(selectedCities.value.map((city) => city.trim().toLowerCase()))
+  const selectedRoleSet = new Set(selectedRoles.value.map((role) => role.trim().toUpperCase()))
 
   return users.value.filter((user) => {
+    const cityName = getCityName(user.city).toLowerCase()
+    const roleName = String(user.role ?? '').toUpperCase()
     const matchesSearch =
       !term ||
       [
@@ -32,23 +50,88 @@ const filteredUsers = computed(() => {
         user.insurance,
         user.practiceName,
         user.phoneNumber,
+        getCityName(user.city),
         user.doctorType?.name,
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term))
 
-    const matchesCity = !city || String(user.city ?? '').toLowerCase().includes(city)
+    const matchesCity = selectedCitySet.size === 0 || selectedCitySet.has(cityName)
+    const matchesRole = selectedRoleSet.size === 0 || selectedRoleSet.has(roleName)
 
-    return matchesSearch && matchesCity
+    return matchesSearch && matchesCity && matchesRole
   })
+})
+
+const selectedCityLabel = computed(() => {
+  if (selectedCities.value.length === 0) return 'Alle Orte'
+  if (selectedCities.value.length === 1) return selectedCities.value[0]
+  return `${selectedCities.value.length} Orte ausgewählt`
+})
+
+const selectedRoleLabel = computed(() => {
+  if (selectedRoles.value.length === 0) return 'Alle Rollen'
+  if (selectedRoles.value.length === 1) {
+    return roleOptions.find((role) => role.value === selectedRoles.value[0])?.label || 'Alle Rollen'
+  }
+  return `${selectedRoles.value.length} Rollen ausgewählt`
 })
 
 function displayValue(value: string | number | null | undefined) {
   return value === null || value === undefined || value === '' ? 'Nicht hinterlegt' : value
 }
 
+function getCityName(city: unknown) {
+  if (!city) return ''
+  if (typeof city === 'string') return city
+  if (typeof city === 'object' && 'name' in city) {
+    const name = (city as City).name
+    return typeof name === 'string' ? name : ''
+  }
+  return ''
+}
+
 function displayName(user: BackendProfile) {
   return [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Nicht hinterlegt'
+}
+
+function toggleCity(city: string) {
+  const index = selectedCities.value.indexOf(city)
+  if (index >= 0) {
+    selectedCities.value.splice(index, 1)
+  } else {
+    selectedCities.value.push(city)
+  }
+}
+
+function toggleRole(role: string) {
+  const index = selectedRoles.value.indexOf(role)
+  if (index >= 0) {
+    selectedRoles.value.splice(index, 1)
+  } else {
+    selectedRoles.value.push(role)
+  }
+}
+
+function isCitySelected(city: string) {
+  return selectedCities.value.includes(city)
+}
+
+function isRoleSelected(role: string) {
+  return selectedRoles.value.includes(role)
+}
+
+function onDocumentClick(event: MouseEvent) {
+  if (!event.target) return
+  const target = event.target as Node
+
+  if (cityDropdownRef.value && !cityDropdownRef.value.contains(target)) {
+    isCityOpen.value = false
+  }
+
+  if (roleDropdownRef.value && !roleDropdownRef.value.contains(target)) {
+    isRoleOpen.value = false
+  }
 }
 
 function openUser(user: BackendProfile) {
@@ -86,7 +169,17 @@ async function loadUsers() {
   }
 }
 
-onMounted(loadUsers)
+onMounted(async () => {
+  document.addEventListener('click', onDocumentClick)
+  await Promise.allSettled([
+    doctorStore.fetchCities(),
+    loadUsers(),
+  ])
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick)
+})
 </script>
 
 <template>
@@ -102,9 +195,45 @@ onMounted(loadUsers)
   <main class="admin-container">
     <div class="filter-bar">
       <input v-model="search" type="search" placeholder="Benutzer suchen">
-      <input v-model="cityFilter" type="search" placeholder="Ort filtern">
-      <button type="button" class="btn btn-primary" @click="loadUsers">Aktualisieren</button>
+      <div ref="cityDropdownRef" class="filter-dropdown">
+        <span class="filter-label">Ort filtern</span>
+        <button type="button" class="filter-trigger" @click="isCityOpen = !isCityOpen">
+          {{ selectedCityLabel }}
+          <span>⌄</span>
+        </button>
+        <div v-if="isCityOpen" class="filter-popup">
+          <label v-for="city in cities" :key="city.id" class="filter-option">
+            <input
+              type="checkbox"
+              :checked="isCitySelected(city.name)"
+              @change="toggleCity(city.name)"
+            >
+            <span>{{ city.name }}</span>
+          </label>
+        </div>
+      </div>
+
+      <div ref="roleDropdownRef" class="filter-dropdown">
+        <span class="filter-label">Rolle filtern</span>
+        <button type="button" class="filter-trigger" @click="isRoleOpen = !isRoleOpen">
+          {{ selectedRoleLabel }}
+          <span>⌄</span>
+        </button>
+        <div v-if="isRoleOpen" class="filter-popup">
+          <label v-for="role in roleOptions" :key="role.value" class="filter-option">
+            <input
+              type="checkbox"
+              :checked="isRoleSelected(role.value)"
+              @change="toggleRole(role.value)"
+            >
+            <span>{{ role.label }}</span>
+          </label>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-primary refresh-button" @click="loadUsers">Aktualisieren</button>
     </div>
+    <p class="filter-hint">Ohne Auswahl werden alle Orte und Rollen angezeigt.</p>
 
     <p v-if="message" class="message">{{ message }}</p>
     <p v-if="isLoading" class="message">Benutzer werden geladen...</p>
@@ -133,7 +262,7 @@ onMounted(loadUsers)
         <div class="user-meta">
           <span class="meta-item">Status: {{ displayValue(user.status) }}</span>
           <span class="meta-item">Alter: {{ displayValue(user.age) }}</span>
-          <span v-if="user.city" class="meta-item">Ort: {{ user.city }}</span>
+          <span v-if="getCityName(user.city)" class="meta-item">Ort: {{ getCityName(user.city) }}</span>
           <span v-if="user.practiceName" class="meta-item">Praxis: {{ user.practiceName }}</span>
           <span v-if="user.doctorType?.name" class="meta-item">Fachrichtung: {{ user.doctorType.name }}</span>
         </div>
@@ -175,7 +304,9 @@ onMounted(loadUsers)
 
 .filter-bar {
   display: flex;
+  align-items: stretch;
   gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 24px;
   padding: 18px;
   background: #ffffff;
@@ -184,13 +315,113 @@ onMounted(loadUsers)
 }
 
 .filter-bar input {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   height: 44px;
   padding: 0 14px;
   border: 1px solid #ddd;
   border-radius: 10px;
   font-size: 15px;
+}
+
+.filter-bar > input {
+  align-self: end;
+}
+
+.filter-dropdown {
+  position: relative;
+  width: min(100%, 280px);
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-label {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #555;
+}
+
+.filter-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  color: #1f2a44;
+  font: inherit;
+  background: #fff;
+  border: 1px solid #d8e3f7;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(24, 58, 150, 0.08);
+}
+
+.filter-trigger span {
+  margin-left: 12px;
+  color: #155dfc;
+}
+
+.filter-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 10;
+  display: grid;
+  width: 100%;
+  max-height: 240px;
+  overflow: auto;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid #d8e3f7;
+  border-radius: 10px;
+  box-shadow: 0 16px 34px rgba(24, 58, 150, 0.18);
+}
+
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  color: #26334d;
+  font-size: 15px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.filter-option:hover {
+  color: #155dfc;
+  background: #eef3fb;
+}
+
+.filter-option input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #155dfc;
+  box-shadow: none;
+}
+
+.filter-hint {
+  margin: -8px 0 18px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.refresh-button {
+  align-self: end;
+  height: 44px;
+}
+
+@media (max-width: 900px) {
+  .filter-bar {
+    flex-direction: column;
+  }
+
+  .filter-bar input,
+  .filter-dropdown {
+    width: 100%;
+  }
 }
 
 .user-grid {

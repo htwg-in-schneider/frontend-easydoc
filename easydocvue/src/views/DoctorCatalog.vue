@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { useDoctorStore, type DoctorSearchFilters } from '@/stores/doctors'
-import { useProfileStore } from '@/stores/profile'
+import { buildDoctorQuery, matchesDoctorFilters, normalizeSelection } from '@/utils/doctorFilters'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import DoctorCard from '@/components/DoctorCard.vue'
@@ -11,9 +11,7 @@ import DoctorFilter from '@/components/DoctorFilter.vue'
 
 const route = useRoute()
 const doctorStore = useDoctorStore()
-const profileStore = useProfileStore()
 const { doctors, earliestAvailability } = storeToRefs(doctorStore)
-const { isAdmin } = storeToRefs(profileStore)
 
 function formatSlot(iso: string | null | undefined): string {
   if (!iso) return ''
@@ -21,25 +19,28 @@ function formatSlot(iso: string | null | undefined): string {
 }
 
 const activeFilters = ref<DoctorSearchFilters>({
-  doctorType: (route.query.doctorType as string) || '',
-  city: (route.query.city as string) || '',
+  doctorType: normalizeSelection(route.query.doctorType),
+  city: normalizeSelection(route.query.city),
 })
 
 onMounted(async () => {
   try {
-    if (activeFilters.value.doctorType || activeFilters.value.city) {
-      await doctorStore.search(activeFilters.value)
-    } else {
-      await doctorStore.fetchAll()
+    await doctorStore.fetchAll()
+    if (activeFilters.value.sortByEarliestSlot) {
+      await doctorStore.fetchEarliestAvailability()
     }
   } catch (error) {
     console.error('Doctor loading failed', error)
   }
 })
 
+const filteredDoctors = computed(() => {
+  return doctors.value.filter((doctor) => matchesDoctorFilters(doctor, activeFilters.value))
+})
+
 const sortedDoctors = computed(() => {
-  if (!activeFilters.value.sortByEarliestSlot) return doctors.value
-  return [...doctors.value].sort((a, b) => {
+  if (!activeFilters.value.sortByEarliestSlot) return filteredDoctors.value
+  return [...filteredDoctors.value].sort((a, b) => {
     const aSlot = earliestAvailability.value.get(a.id) ?? null
     const bSlot = earliestAvailability.value.get(b.id) ?? null
     if (!aSlot && !bSlot) return 0
@@ -52,7 +53,6 @@ const sortedDoctors = computed(() => {
 async function onFilter(filters: DoctorSearchFilters) {
   activeFilters.value = filters
   try {
-    await doctorStore.search(filters)
     if (filters.sortByEarliestSlot) {
       await doctorStore.fetchEarliestAvailability()
     }
@@ -75,15 +75,12 @@ async function onFilter(filters: DoctorSearchFilters) {
   <div class="catalog-container">
     <DoctorFilter :initialFilters="activeFilters" @filter="onFilter" />
 
-    <div class="catalog-actions">
+    <div class="view-switch-row">
       <router-link
-        class="btn btn-map"
-        :to="{ path: '/doctors/map', query: { doctorType: activeFilters.doctorType || undefined, city: activeFilters.city || undefined } }"
+        class="view-switch-btn"
+        :to="{ path: '/doctors/map', query: buildDoctorQuery(activeFilters) }"
       >
-        🗺️ Kartenansicht
-      </router-link>
-      <router-link v-if="isAdmin" class="btn btn-primary" to="/doctor/create">
-        + Neuer Arzt
+        Kartenansicht
       </router-link>
     </div>
 
@@ -130,40 +127,29 @@ async function onFilter(filters: DoctorSearchFilters) {
   padding: 40px 20px;
 }
 
-.catalog-actions {
+.view-switch-row {
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
+  justify-content: center;
   margin-bottom: 24px;
 }
 
-.btn {
+.view-switch-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 24px;
+  width: 220px;
+  height: 48px;
+  padding: 0 24px;
   border-radius: 10px;
   text-decoration: none;
   font-weight: 600;
   font-size: 15px;
+  background: #1e293b;
+  color: #fff;
   transition: background 0.3s;
 }
 
-.btn-primary {
-  background: #155dfc;
-  color: #fff;
-}
-
-.btn-primary:hover {
-  background: #0f4ad4;
-}
-
-.btn-map {
-  background: #1e293b;
-  color: #fff;
-}
-
-.btn-map:hover {
+.view-switch-btn:hover {
   background: #334155;
 }
 
@@ -193,6 +179,10 @@ async function onFilter(filters: DoctorSearchFilters) {
 
   .catalog-header h2 {
     font-size: 28px;
+  }
+
+  .view-switch-btn {
+    width: 100%;
   }
 }
 </style>
