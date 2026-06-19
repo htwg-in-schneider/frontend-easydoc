@@ -11,6 +11,7 @@ import {
   type Appointment,
 } from '@/stores/doctors'
 import { useProfileStore } from '@/stores/profile'
+import { buildGoogleMapsUrl, buildMailtoUrl, buildTelUrl, formatDoctorAddress, toExternalUrl } from '@/utils/doctorContact'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import DoctorAppointments from '@/components/DoctorAppointments.vue'
@@ -19,15 +20,11 @@ const route = useRoute()
 const doctorStore = useDoctorStore()
 const profileStore = useProfileStore()
 const { getAccessTokenSilently } = useAuth0()
+const returnTo = computed(() => (typeof route.query.returnTo === 'string' && route.query.returnTo.trim() ? route.query.returnTo : '/doctors'))
 const doctor = ref<Doctor | null>(null)
 const appointments = ref<Appointment[]>([])
 const { isAdmin } = storeToRefs(profileStore)
 const canBook = computed(() => !isAdmin.value)
-
-function toExternalUrl(url: string | null) {
-  if (!url) return ''
-  return /^https?:\/\//i.test(url) ? url : `https://${url}`
-}
 
 onMounted(async () => {
   const rawId = route.params.id
@@ -83,24 +80,22 @@ async function onAppointmentDeleted() {
           <v-icon size="20" class="mr-2">mdi-stethoscope</v-icon>
           <span>{{ getDoctorTypeName(doctor.doctorType) }}</span>
         </div>
-        <div class="info-row" v-if="doctor.city || doctor.country">
+        <a v-if="buildGoogleMapsUrl(doctor)" class="info-row contact-link" :href="buildGoogleMapsUrl(doctor)" target="_blank" rel="noopener noreferrer">
           <v-icon size="20" class="mr-2">mdi-map-marker</v-icon>
-          <span>{{ doctor.city }}<span v-if="doctor.city && doctor.country">, </span>{{ doctor.country }}</span>
-        </div>
-        <div class="info-row" v-if="doctor.phoneNumber">
+          <span>{{ formatDoctorAddress(doctor) }}</span>
+        </a>
+        <a v-if="doctor.phoneNumber" class="info-row contact-link" :href="buildTelUrl(doctor.phoneNumber)">
           <v-icon size="20" class="mr-2">mdi-phone</v-icon>
           <span>{{ doctor.phoneNumber }}</span>
-        </div>
-        <div class="info-row" v-if="doctor.email">
+        </a>
+        <a v-if="doctor.email" class="info-row contact-link" :href="buildMailtoUrl(doctor.email)">
           <v-icon size="20" class="mr-2">mdi-email</v-icon>
           <span>{{ doctor.email }}</span>
-        </div>
-        <div class="info-row" v-if="doctor.website">
+        </a>
+        <a v-if="doctor.website" class="info-row contact-link" :href="toExternalUrl(doctor.website)" target="_blank" rel="noopener noreferrer">
           <v-icon size="20" class="mr-2">mdi-web</v-icon>
-          <a :href="toExternalUrl(doctor.website)" target="_blank" rel="noopener noreferrer">
-            {{ doctor.website }}
-          </a>
-        </div>
+          <span>{{ doctor.website }}</span>
+        </a>
         <div class="info-row" v-if="doctor.distance !== undefined && doctor.distance !== null">
           <v-icon size="20" class="mr-2">mdi-map-marker-distance</v-icon>
           <span>{{ doctor.distance }} km entfernt</span>
@@ -118,7 +113,7 @@ async function onAppointmentDeleted() {
         <router-link v-if="isAdmin" class="btn btn-primary" :to="{ name: 'doctor-edit', params: { id: doctor.id } }">
           Bearbeiten
         </router-link>
-        <router-link class="btn btn-secondary" to="/doctors">
+        <router-link class="btn btn-secondary" :to="returnTo">
           ← Zurück
         </router-link>
       </div>
@@ -135,7 +130,7 @@ async function onAppointmentDeleted() {
   <section class="detail-container" v-else>
     <div class="detail-card">
       <p>Arzt wurde nicht gefunden.</p>
-      <router-link class="btn btn-secondary" to="/doctors">← Zurück</router-link>
+      <router-link class="btn btn-secondary" :to="returnTo">← Zurück</router-link>
     </div>
   </section>
 
@@ -197,6 +192,22 @@ async function onAppointmentDeleted() {
   gap: 8px;
   font-size: 16px;
   color: #555;
+}
+
+.contact-link {
+  color: #555;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.contact-link:hover {
+  color: #155dfc;
+}
+
+.contact-link:focus-visible {
+  outline: 2px solid #155dfc;
+  outline-offset: 3px;
+  border-radius: 6px;
 }
 
 .detail-actions {

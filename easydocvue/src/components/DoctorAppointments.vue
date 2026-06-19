@@ -152,7 +152,8 @@ async function onCancel(id: number) {
   background: #d1e7dd;
 }
 
-.status-cancelled {
+.status-cancelled,
+.status-canceled {
   color: #842029;
   background: #f8d7da;
 }

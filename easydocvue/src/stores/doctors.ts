@@ -45,18 +45,34 @@ export interface UserSummary {
   id: number
   firstName: string | null
   lastName: string | null
+  email?: string | null
+  phoneNumber?: string | null
+  practiceName?: string | null
+  street?: string | null
+  postcode?: string | null
+  city?: string | null
+  country?: string | null
+}
+
+export interface AppointmentServiceSummary {
+  id?: number | null
+  bezeichnung?: string | null
+  name?: string | null
+  preis?: number | null
 }
 
 export interface Appointment {
   id: number
   startDateTime: string
   endDateTime: string
-  status: 'BOOKED' | 'CANCELLED' | 'COMPLETED'
+  status: string
   price: number | null
   reason: string | null
   doctor?: Doctor | null
   patient?: UserSummary | null
   user?: UserSummary | null
+  service?: AppointmentServiceSummary | null
+  dienstleistung?: AppointmentServiceSummary | null
   createdAt?: string | null
   updatedAt?: string | null
 }
@@ -150,6 +166,40 @@ function normalizeSpecialization(value: any): Specialization | null {
   }
 }
 
+function normalizeUserSummary(value: any): UserSummary | null {
+  if (!value || value.id === undefined || value.id === null) {
+    return null
+  }
+
+  return {
+    ...value,
+    id: Number(value.id),
+    firstName: value.firstName ?? null,
+    lastName: value.lastName ?? null,
+    email: value.email ?? null,
+    phoneNumber: value.phoneNumber ?? null,
+    practiceName: value.practiceName ?? null,
+    street: value.street ?? null,
+    postcode: value.postcode ?? null,
+    city: value.city ?? null,
+    country: value.country ?? null,
+  }
+}
+
+function normalizeAppointmentService(value: any): AppointmentServiceSummary | null {
+  if (!value || (value.id === undefined && !value.bezeichnung && !value.name)) {
+    return null
+  }
+
+  return {
+    ...value,
+    id: value.id !== undefined && value.id !== null ? Number(value.id) : null,
+    bezeichnung: value.bezeichnung ?? null,
+    name: value.name ?? null,
+    preis: value.preis ?? null,
+  }
+}
+
 function normalizeDoctor(doctor: any): Doctor {
   const specialization = normalizeSpecialization(doctor.specialization ?? doctor.doctorType)
   return {
@@ -160,11 +210,15 @@ function normalizeDoctor(doctor: any): Doctor {
 }
 
 function normalizeAppointment(appointment: any): Appointment {
-  const patient = appointment.patient ?? appointment.user ?? null
+  const patient = normalizeUserSummary(appointment.patient ?? appointment.user)
+  const service = normalizeAppointmentService(appointment.service ?? appointment.dienstleistung)
   return {
     ...appointment,
+    status: typeof appointment.status === 'string' ? appointment.status.toUpperCase() : String(appointment.status ?? ''),
     patient,
     user: patient,
+    service,
+    dienstleistung: service,
   }
 }
 
@@ -382,6 +436,13 @@ export const useDoctorStore = defineStore('doctors', () => {
     })
   }
 
+  async function deleteAppointment(id: number, token: string) {
+    return await requestJson<void>(`${API_BASE}/appointments/${id}`, {
+      method: 'DELETE',
+      headers: jsonHeaders(token),
+    })
+  }
+
   return {
     doctors,
     doctorTypes,
@@ -405,5 +466,6 @@ export const useDoctorStore = defineStore('doctors', () => {
     removeAvailabilityRule,
     bookAppointment,
     cancelAppointment,
+    deleteAppointment,
   }
 })

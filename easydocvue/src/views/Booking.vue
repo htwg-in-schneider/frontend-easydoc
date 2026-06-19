@@ -5,6 +5,7 @@ import { useDoctorStore, formatDoctorName, getDoctorTypeName } from '@/stores/do
 import type { Doctor } from '@/stores/doctors'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
+import { buildGoogleMapsUrl, buildMailtoUrl, buildTelUrl, formatDoctorAddress, toExternalUrl } from '@/utils/doctorContact'
 
 const router = useRouter()
 const route = useRoute()
@@ -51,22 +52,22 @@ function goToSlotSelection() {
               <span v-if="doctor.distance !== null" class="meta-item">📍 {{ doctor.distance }} km</span>
             </div>
             <div class="doctor-contact">
-              <p v-if="doctor.street">
+              <a v-if="buildGoogleMapsUrl(doctor)" class="contact-link" :href="buildGoogleMapsUrl(doctor)" target="_blank" rel="noopener noreferrer">
                 <v-icon size="16">mdi-map-marker</v-icon>
-                {{ doctor.street }}, {{ doctor.postcode }} {{ doctor.city }}
-              </p>
-              <p v-if="doctor.phoneNumber">
+                <span>{{ formatDoctorAddress(doctor) }}</span>
+              </a>
+              <a v-if="doctor.phoneNumber" class="contact-link" :href="buildTelUrl(doctor.phoneNumber)">
                 <v-icon size="16">mdi-phone</v-icon>
-                {{ doctor.phoneNumber }}
-              </p>
-              <p v-if="doctor.email">
+                <span>{{ doctor.phoneNumber }}</span>
+              </a>
+              <a v-if="doctor.email" class="contact-link" :href="buildMailtoUrl(doctor.email)">
                 <v-icon size="16">mdi-email</v-icon>
-                {{ doctor.email }}
-              </p>
-              <p v-if="doctor.website">
+                <span>{{ doctor.email }}</span>
+              </a>
+              <a v-if="doctor.website" class="contact-link" :href="toExternalUrl(doctor.website)" target="_blank" rel="noopener noreferrer">
                 <v-icon size="16">mdi-web</v-icon>
-                {{ doctor.website }}
-              </p>
+                <span>{{ doctor.website }}</span>
+              </a>
             </div>
           </div>
         </div>
@@ -167,13 +168,25 @@ function goToSlotSelection() {
   margin-top: 12px;
 }
 
-.doctor-contact p {
+.contact-link {
   display: flex;
   align-items: center;
   gap: 8px;
   margin: 6px 0;
-  font-size: 14px;
   color: #555;
+  font-size: 14px;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.contact-link:hover {
+  color: #155dfc;
+}
+
+.contact-link:focus-visible {
+  outline: 2px solid #155dfc;
+  outline-offset: 3px;
+  border-radius: 6px;
 }
 
 .booking-action {
@@ -240,8 +253,9 @@ function goToSlotSelection() {
     justify-content: center;
   }
 
-  .doctor-contact p {
+  .contact-link {
     justify-content: center;
+    width: 100%;
   }
 }
 </style>

@@ -18,6 +18,7 @@ const doctorStore = useDoctorStore()
 const profileStore = useProfileStore()
 const popup = usePopupStore()
 const { doctorTypes } = storeToRefs(doctorStore)
+const backTarget = computed(() => (typeof route.query.returnTo === 'string' && route.query.returnTo.trim() ? route.query.returnTo : '/admin/users'))
 
 const userId = ref(0)
 const doctorTypeId = ref<number | null>(null)
@@ -91,7 +92,7 @@ async function loadUser() {
       message: 'Diese Benutzer-ID ist ungültig.',
       variant: 'warning',
     })
-    router.push('/admin/users')
+    router.push(backTarget.value)
     return
   }
 
@@ -117,7 +118,7 @@ async function loadUser() {
         message: 'Der ausgewählte Benutzer wurde nicht gefunden.',
         variant: 'warning',
       })
-      router.push('/admin/users')
+      router.push(backTarget.value)
       return
     }
 
@@ -137,7 +138,7 @@ async function loadUser() {
       message: error instanceof Error ? error.message : 'Benutzer konnte nicht geladen werden.',
       variant: 'danger',
     })
-    router.push('/admin/users')
+    router.push(backTarget.value)
   } finally {
     isLoading.value = false
   }
@@ -182,7 +183,7 @@ async function onUpdate() {
       message: 'Benutzer erfolgreich aktualisiert.',
       variant: 'success',
     })
-    router.push('/admin/users')
+    router.push(backTarget.value)
   } catch (error) {
     await popup.showMessage({
       title: 'Speichern fehlgeschlagen',
@@ -220,7 +221,7 @@ async function onDelete() {
       message: 'Benutzer erfolgreich gelöscht.',
       variant: 'success',
     })
-    router.push('/admin/users')
+    router.push(backTarget.value)
   } catch (error) {
     await popup.showMessage({
       title: 'Löschen fehlgeschlagen',
@@ -370,7 +371,7 @@ onMounted(loadUser)
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">Aktualisieren</button>
         <button type="button" class="btn btn-danger" @click="onDelete">Löschen</button>
-        <router-link class="btn btn-secondary" to="/admin/users">Abbrechen</router-link>
+        <router-link class="btn btn-secondary" :to="backTarget">Abbrechen</router-link>
       </div>
     </form>
   </div>
