@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth0 } from '@auth0/auth0-vue'
@@ -17,6 +17,7 @@ const profileStore = useProfileStore()
 const popup = usePopupStore()
 const { doctorTypes } = storeToRefs(doctorStore)
 const { isAdmin } = storeToRefs(profileStore)
+const backTarget = computed(() => (typeof route.query.returnTo === 'string' && route.query.returnTo.trim() ? route.query.returnTo : '/doctors'))
 
 type DoctorForm = Omit<DoctorPayload, 'doctorType'>
 
@@ -52,7 +53,7 @@ onMounted(async () => {
       message: 'Diese Arzt-ID ist ungültig.',
       variant: 'warning',
     })
-    router.push('/doctors')
+    router.push(backTarget.value)
     return
   }
 
@@ -71,7 +72,7 @@ onMounted(async () => {
       message: 'Der ausgewählte Arzt wurde nicht gefunden.',
       variant: 'warning',
     })
-    router.push('/doctors')
+    router.push(backTarget.value)
     return
   }
   doctorId.value = id
@@ -123,7 +124,7 @@ async function onUpdate() {
     message: 'Arzt erfolgreich aktualisiert.',
     variant: 'success',
   })
-  router.push('/doctors')
+  router.push(backTarget.value)
 }
 
 async function onDelete() {
@@ -142,7 +143,7 @@ async function onDelete() {
     message: 'Arzt erfolgreich gelöscht.',
     variant: 'success',
   })
-  router.push('/doctors')
+  router.push(backTarget.value)
 }
 </script>
 
@@ -241,7 +242,7 @@ async function onDelete() {
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">Aktualisieren</button>
         <button v-if="isAdmin" type="button" class="btn btn-danger" @click="onDelete">Löschen</button>
-        <router-link class="btn btn-secondary" to="/doctors">Abbrechen</router-link>
+        <router-link class="btn btn-secondary" :to="backTarget">Abbrechen</router-link>
       </div>
     </form>
   </div>

@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAuth0 } from '@auth0/auth0-vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { API_BASE, roleRedirectPath, useProfileStore, type BackendProfile } from '@/stores/profile'
 import { useDoctorStore, type City } from '@/stores/doctors'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
 const router = useRouter()
+const route = useRoute()
 const { getAccessTokenSilently } = useAuth0()
 const profileStore = useProfileStore()
 const doctorStore = useDoctorStore()
@@ -18,6 +19,7 @@ const users = ref<BackendProfile[]>([])
 const search = ref('')
 const selectedCities = ref<string[]>([])
 const selectedRoles = ref<string[]>([])
+const visibleLimit = ref(10)
 const isCityOpen = ref(false)
 const isRoleOpen = ref(false)
 const cityDropdownRef = ref<HTMLElement | null>(null)
@@ -63,6 +65,9 @@ const filteredUsers = computed(() => {
   })
 })
 
+const visibleUsers = computed(() => filteredUsers.value.slice(0, visibleLimit.value))
+const canLoadMoreUsers = computed(() => visibleLimit.value < filteredUsers.value.length)
+
 const selectedCityLabel = computed(() => {
   if (selectedCities.value.length === 0) return 'Alle Orte'
   if (selectedCities.value.length === 1) return selectedCities.value[0]
@@ -93,6 +98,21 @@ function getCityName(city: unknown) {
 
 function displayName(user: BackendProfile) {
   return [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Nicht hinterlegt'
+}
+
+function getAvatarInitials(user: BackendProfile) {
+  const firstName = user.firstName?.trim() || ''
+  const lastName = user.lastName?.trim() || ''
+  if (firstName || lastName) {
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+  }
+
+  const email = user.email?.trim() || ''
+  return email.slice(0, 2).toUpperCase() || 'U'
+}
+
+function getAvatarImage(user: BackendProfile) {
+  return user.imageUrl?.trim() || ''
 }
 
 function toggleCity(city: string) {
@@ -136,12 +156,22 @@ function onDocumentClick(event: MouseEvent) {
 
 function openUser(user: BackendProfile) {
   if (!user.id) return
-  router.push({ name: 'user-edit', params: { id: user.id } })
+  router.push({
+    name: 'user-detail',
+    params: { id: user.id },
+    query: { returnTo: route.fullPath },
+    state: { userSnapshot: JSON.stringify(user) },
+  })
+}
+
+function loadMoreUsers() {
+  visibleLimit.value += 10
 }
 
 async function loadUsers() {
   isLoading.value = true
   message.value = ''
+  visibleLimit.value = 10
 
   try {
     const token = await getAccessTokenSilently()
@@ -176,6 +206,10 @@ onMounted(async () => {
     loadUsers(),
   ])
 })
+
+watch([search, selectedCities, selectedRoles], () => {
+  visibleLimit.value = 10
+}, { deep: true })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick)
@@ -241,20 +275,26 @@ onBeforeUnmount(() => {
 
     <div v-else class="user-grid">
       <article
-        v-for="(user, index) in filteredUsers"
+        v-for="(user, index) in visibleUsers"
         :key="user.id ?? user.auth0Id ?? user.email ?? index"
         class="user-card"
         role="link"
         tabindex="0"
-        :aria-label="`Benutzer bearbeiten: ${displayName(user)}`"
+        :aria-label="`Benutzerdetails öffnen: ${displayName(user)}`"
         @click="openUser(user)"
         @keydown.enter.self.prevent="openUser(user)"
         @keydown.space.self.prevent="openUser(user)"
       >
         <div class="card-header">
-          <div>
-            <h3>{{ displayName(user) }}</h3>
-            <p class="user-email">{{ displayValue(user.email) }}</p>
+          <div class="user-identity">
+            <div class="user-avatar">
+              <img v-if="getAvatarImage(user)" :src="getAvatarImage(user)" :alt="displayName(user)">
+              <span v-else class="user-avatar-fallback">{{ getAvatarInitials(user) }}</span>
+            </div>
+            <div class="user-heading">
+              <h3>{{ displayName(user) }}</h3>
+              <p class="user-email">{{ displayValue(user.email) }}</p>
+            </div>
           </div>
           <span class="role-pill">{{ displayValue(user.role) }}</span>
         </div>
@@ -262,15 +302,19 @@ onBeforeUnmount(() => {
         <div class="user-meta">
           <span class="meta-item">Status: {{ displayValue(user.status) }}</span>
           <span class="meta-item">Alter: {{ displayValue(user.age) }}</span>
-          <span v-if="getCityName(user.city)" class="meta-item">Ort: {{ getCityName(user.city) }}</span>
+          <span class="meta-item">Ort: {{ displayValue(getCityName(user.city)) }}</span>
           <span v-if="user.practiceName" class="meta-item">Praxis: {{ user.practiceName }}</span>
           <span v-if="user.doctorType?.name" class="meta-item">Fachrichtung: {{ user.doctorType.name }}</span>
         </div>
 
         <div class="card-actions">
-          <button type="button" class="btn btn-primary" @click.stop="openUser(user)">Bearbeiten</button>
+          <button type="button" class="btn btn-primary" @click.stop="openUser(user)">Ansehen</button>
         </div>
       </article>
+    </div>
+
+    <div v-if="canLoadMoreUsers" class="load-more-row">
+      <button type="button" class="btn btn-secondary load-more-button" @click="loadMoreUsers">Mehr laden</button>
     </div>
   </main>
 
@@ -458,6 +502,44 @@ onBeforeUnmount(() => {
   align-items: flex-start;
 }
 
+.user-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.user-avatar {
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(180deg, #eef4ff 0%, #dfeaff 100%);
+  border: 1px solid #d8e3f7;
+  box-shadow: 0 8px 20px rgba(21, 93, 252, 0.08);
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-avatar-fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: #155dfc;
+  font-weight: 800;
+  font-size: 17px;
+}
+
+.user-heading {
+  min-width: 0;
+}
+
 .card-header h3 {
   margin: 0 0 6px;
   color: #333;
@@ -531,6 +613,16 @@ onBeforeUnmount(() => {
   padding: 16px 0 8px;
 }
 
+.load-more-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.load-more-button {
+  min-width: 180px;
+}
+
 @media (max-width: 640px) {
   .filter-bar {
     flex-direction: column;
@@ -538,6 +630,15 @@ onBeforeUnmount(() => {
 
   .card-header {
     flex-direction: column;
+  }
+
+  .user-identity {
+    width: 100%;
+  }
+
+  .user-avatar {
+    width: 48px;
+    height: 48px;
   }
 }
 </style>

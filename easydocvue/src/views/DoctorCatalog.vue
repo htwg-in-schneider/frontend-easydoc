@@ -12,6 +12,7 @@ import DoctorFilter from '@/components/DoctorFilter.vue'
 const route = useRoute()
 const doctorStore = useDoctorStore()
 const { doctors, earliestAvailability } = storeToRefs(doctorStore)
+const visibleLimit = ref(10)
 
 function formatSlot(iso: string | null | undefined): string {
   if (!iso) return ''
@@ -50,8 +51,12 @@ const sortedDoctors = computed(() => {
   })
 })
 
+const visibleDoctors = computed(() => sortedDoctors.value.slice(0, visibleLimit.value))
+const canLoadMoreDoctors = computed(() => visibleLimit.value < sortedDoctors.value.length)
+
 async function onFilter(filters: DoctorSearchFilters) {
   activeFilters.value = filters
+  visibleLimit.value = 10
   try {
     if (filters.sortByEarliestSlot) {
       await doctorStore.fetchEarliestAvailability()
@@ -59,6 +64,10 @@ async function onFilter(filters: DoctorSearchFilters) {
   } catch (error) {
     console.error('Doctor search failed', error)
   }
+}
+
+function loadMoreDoctors() {
+  visibleLimit.value += 10
 }
 </script>
 
@@ -85,7 +94,7 @@ async function onFilter(filters: DoctorSearchFilters) {
     </div>
 
     <div class="doctor-grid">
-      <div v-for="doctor in sortedDoctors" :key="doctor.id" class="doctor-col">
+      <div v-for="doctor in visibleDoctors" :key="doctor.id" class="doctor-col">
         <DoctorCard :doctor="doctor" />
         <p v-if="activeFilters.sortByEarliestSlot" class="earliest-slot">
           <template v-if="earliestAvailability.get(doctor.id)">
@@ -97,6 +106,10 @@ async function onFilter(filters: DoctorSearchFilters) {
     </div>
 
     <p v-if="sortedDoctors.length === 0" class="no-results">Keine Ärzte gefunden.</p>
+
+    <div v-if="canLoadMoreDoctors" class="load-more-row">
+      <button type="button" class="load-more-btn" @click="loadMoreDoctors">Mehr laden</button>
+    </div>
   </div>
 
   <AppFooter />
@@ -164,6 +177,31 @@ async function onFilter(filters: DoctorSearchFilters) {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 24px;
+}
+
+.load-more-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.load-more-btn {
+  min-width: 180px;
+  height: 46px;
+  padding: 0 18px;
+  border: 1px solid #d8e3f7;
+  border-radius: 10px;
+  background: #f0f6fe;
+  color: #155dfc;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.18s ease;
+}
+
+.load-more-btn:hover {
+  background: #dce8fd;
+  transform: translateY(-1px);
 }
 
 @media (max-width: 992px) {

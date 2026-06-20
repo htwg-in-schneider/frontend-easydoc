@@ -23,7 +23,32 @@ const backTarget = computed(() => (typeof route.query.returnTo === 'string' && r
 const userId = ref(0)
 const doctorTypeId = ref<number | null>(null)
 const currentDoctorType = ref<DoctorType | null>(null)
+const originalUser = ref<BackendProfile | null>(null)
 const isLoading = ref(true)
+
+type UserUpdatePayload = {
+  name: string | null
+  firstName: string
+  lastName: string
+  email: string
+  role: UserRole
+  insurance: string | null
+  status: string | null
+  birthday: string | null
+  title: string | null
+  practiceName: string | null
+  rating: number | null
+  phoneNumber: string | null
+  website: string | null
+  street: string | null
+  postcode: string | null
+  city: { name: string } | null
+  country: string | null
+  imageUrl: string | null
+  distance: number | null
+  consultationFee: number | null
+  specialization: DoctorType | null
+}
 
 const form = ref<BackendProfile>({
   id: null,
@@ -54,6 +79,39 @@ const form = ref<BackendProfile>({
 
 const isDoctorRole = computed(() => form.value.role === 'DOCTOR')
 
+function normalizeTextField(value: unknown) {
+  if (value === null || value === undefined || value === '') return ''
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  if (typeof value === 'object') {
+    const record = value as { name?: unknown; label?: unknown }
+    if (typeof record.name === 'string' && record.name.trim()) return record.name
+    if (typeof record.label === 'string' && record.label.trim()) return record.label
+  }
+  return ''
+}
+
+function normalizePayloadText(value: unknown) {
+  const text = normalizeTextField(value).trim()
+  return text || null
+}
+
+function normalizeRequiredText(value: unknown) {
+  return normalizeTextField(value).trim()
+}
+
+function normalizePayloadNumber(value: unknown) {
+  if (value === null || value === undefined || value === '') return null
+  const numeric = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
+function normalizePayloadCity(value: unknown) {
+  const cityName = normalizePayloadText(value)
+  return cityName ? { name: cityName } : null
+}
+
 function selectedDoctorType(): DoctorType | null {
   if (doctorTypeId.value === null) {
     return null
@@ -74,11 +132,55 @@ function calculateAge(birthday?: string | null) {
   return age
 }
 
-function toUserPayload(): BackendProfile {
-  const { age: _age, ...rest } = form.value
+function toUserPayload(): UserUpdatePayload {
   return {
-    ...rest,
-    doctorType: isDoctorRole.value ? selectedDoctorType() : null,
+    name: normalizePayloadText(form.value.name),
+    firstName: normalizeRequiredText(form.value.firstName),
+    lastName: normalizeRequiredText(form.value.lastName),
+    email: normalizeRequiredText(form.value.email),
+    role: (form.value.role ?? 'USER') as UserRole,
+    insurance: normalizePayloadText(form.value.insurance),
+    status: normalizePayloadText(form.value.status),
+    birthday: normalizePayloadText(form.value.birthday),
+    title: normalizePayloadText(form.value.title),
+    practiceName: normalizePayloadText(form.value.practiceName),
+    rating: normalizePayloadNumber(form.value.rating),
+    phoneNumber: normalizePayloadText(form.value.phoneNumber),
+    website: normalizePayloadText(form.value.website),
+    street: normalizePayloadText(form.value.street),
+    postcode: normalizePayloadText(form.value.postcode),
+    city: normalizePayloadCity(form.value.city),
+    country: normalizePayloadText(form.value.country),
+    imageUrl: normalizePayloadText(form.value.imageUrl),
+    distance: normalizePayloadNumber(form.value.distance),
+    consultationFee: normalizePayloadNumber(form.value.consultationFee),
+    specialization: isDoctorRole.value ? selectedDoctorType() : null,
+  }
+}
+
+function routeWithSnapshot(target: string, snapshot: BackendProfile | null) {
+  const resolved = router.resolve(target)
+  router.push({
+    path: resolved.path,
+    query: resolved.query,
+    hash: resolved.hash,
+    state: {
+      userSnapshot: JSON.stringify(snapshot ?? form.value),
+    },
+  })
+}
+
+function goBack() {
+  routeWithSnapshot(backTarget.value, originalUser.value)
+}
+
+function resolveDeleteTarget() {
+  try {
+    const parsed = new URL(backTarget.value, window.location.origin)
+    const nestedReturnTo = parsed.searchParams.get('returnTo')
+    return nestedReturnTo && nestedReturnTo.trim() ? nestedReturnTo : backTarget.value
+  } catch {
+    return backTarget.value
   }
 }
 
@@ -126,10 +228,23 @@ async function loadUser() {
     userId.value = id
     doctorTypeId.value = user.doctorType?.id ?? null
     currentDoctorType.value = user.doctorType as DoctorType | null
+    originalUser.value = user
     form.value = {
       ...form.value,
       ...user,
       birthday: user.birthday ?? '',
+      title: normalizeTextField(user.title),
+      practiceName: normalizeTextField(user.practiceName),
+      phoneNumber: normalizeTextField(user.phoneNumber),
+      website: normalizeTextField(user.website),
+      street: normalizeTextField(user.street),
+      postcode: normalizeTextField(user.postcode),
+      city: normalizeTextField(user.city),
+      country: normalizeTextField(user.country),
+      imageUrl: normalizeTextField(user.imageUrl),
+      status: normalizeTextField(user.status),
+      insurance: normalizeTextField(user.insurance),
+      email: normalizeTextField(user.email),
       doctorType: user.doctorType ?? null,
     }
   } catch (error) {
@@ -183,7 +298,7 @@ async function onUpdate() {
       message: 'Benutzer erfolgreich aktualisiert.',
       variant: 'success',
     })
-    router.push(backTarget.value)
+    routeWithSnapshot(backTarget.value, form.value)
   } catch (error) {
     await popup.showMessage({
       title: 'Speichern fehlgeschlagen',
@@ -221,7 +336,7 @@ async function onDelete() {
       message: 'Benutzer erfolgreich gelöscht.',
       variant: 'success',
     })
-    router.push(backTarget.value)
+    router.push(resolveDeleteTarget())
   } catch (error) {
     await popup.showMessage({
       title: 'Löschen fehlgeschlagen',
@@ -371,7 +486,7 @@ onMounted(loadUser)
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">Aktualisieren</button>
         <button type="button" class="btn btn-danger" @click="onDelete">Löschen</button>
-        <router-link class="btn btn-secondary" :to="backTarget">Abbrechen</router-link>
+        <button type="button" class="btn btn-secondary" @click="goBack">Abbrechen</button>
       </div>
     </form>
   </div>

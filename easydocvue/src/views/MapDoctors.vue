@@ -22,6 +22,7 @@ function formatSlot(iso: string | null | undefined): string {
 
 const mapContainer = ref<HTMLElement | null>(null)
 const selectedDoctor = ref<Doctor | null>(null)
+const visibleLimit = ref(10)
 const activeFilters = ref<DoctorSearchFilters>({
   doctorType: normalizeSelection(route.query.doctorType),
   city: normalizeSelection(route.query.city),
@@ -129,6 +130,9 @@ const filteredDoctors = computed(() => {
     })
 })
 
+const visibleDoctors = computed(() => filteredDoctors.value.slice(0, visibleLimit.value))
+const canLoadMoreDoctors = computed(() => visibleLimit.value < filteredDoctors.value.length)
+
 function hashString(value: string) {
   let hash = 0
   for (let i = 0; i < value.length; i += 1) {
@@ -229,7 +233,7 @@ async function renderMarkers() {
 
   const coordinates: Array<[number, number]> = []
 
-  for (const doctor of filteredDoctors.value) {
+  for (const doctor of visibleDoctors.value) {
     if (currentVersion !== renderVersion) return
     const coords = getDoctorMarkerCoords(doctor)
 
@@ -254,7 +258,7 @@ async function renderMarkers() {
   }
 
   // Geocode addresses in the background; markers update in place as results arrive
-  startGeocodingDoctors(filteredDoctors.value)
+  startGeocodingDoctors(visibleDoctors.value)
 }
 
 function selectDoctor(doctor: Doctor) {
@@ -274,6 +278,7 @@ function selectDoctor(doctor: Doctor) {
 
 async function onFilter(filters: DoctorSearchFilters) {
   activeFilters.value = filters
+  visibleLimit.value = 10
   selectedDoctor.value = null
   if (filters.sortByEarliestSlot) {
     try {
@@ -288,7 +293,11 @@ function goToDetail(doctorId: number) {
   router.push({ name: 'booking', params: { id: doctorId } })
 }
 
-watch(filteredDoctors, async () => {
+function loadMoreDoctors() {
+  visibleLimit.value += 10
+}
+
+watch(visibleDoctors, async () => {
   await renderMarkers()
   map?.invalidateSize()
 }, { deep: true })
@@ -326,9 +335,9 @@ onBeforeUnmount(() => {
     <div class="map-layout">
       <!-- Doctor list sidebar -->
       <aside class="doctor-sidebar">
-        <template v-if="filteredDoctors.length">
+        <template v-if="visibleDoctors.length">
           <div
-            v-for="doctor in filteredDoctors"
+            v-for="doctor in visibleDoctors"
             :key="doctor.id"
             class="sidebar-card"
             :class="{ active: selectedDoctor?.id === doctor.id }"
@@ -364,6 +373,10 @@ onBeforeUnmount(() => {
       <div class="map-area">
         <div ref="mapContainer" class="map-container"></div>
       </div>
+    </div>
+
+    <div v-if="canLoadMoreDoctors" class="load-more-row">
+      <button type="button" class="load-more-btn" @click="loadMoreDoctors">Mehr laden</button>
     </div>
   </div>
 
@@ -433,6 +446,31 @@ onBeforeUnmount(() => {
   height: 600px;
   position: relative;
   z-index: 1;
+}
+
+.load-more-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.load-more-btn {
+  min-width: 180px;
+  height: 46px;
+  padding: 0 18px;
+  border: 1px solid #d8e3f7;
+  border-radius: 10px;
+  background: #f0f6fe;
+  color: #155dfc;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.18s ease;
+}
+
+.load-more-btn:hover {
+  background: #dce8fd;
+  transform: translateY(-1px);
 }
 
 .doctor-sidebar {

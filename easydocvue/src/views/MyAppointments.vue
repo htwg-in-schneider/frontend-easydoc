@@ -500,7 +500,7 @@ function canOpenDoctorProfile() {
 
 function canOpenPatientProfile() {
   const appointment = selectedAppointment.value
-  return isAdmin.value && !!appointment && !!getAppointmentPatient(appointment)
+  return !!appointment && !!getAppointmentPatient(appointment) && (isAdmin.value || isDoctor.value)
 }
 
 function openAppointmentDetails(appointmentId: number) {
@@ -658,7 +658,12 @@ function openDoctorProfile() {
 function openPatientProfile() {
   const patient = selectedAppointment.value ? getAppointmentPatient(selectedAppointment.value) : null
   if (!patient) return
-  router.push({ name: 'user-edit', params: { id: patient.id }, query: { returnTo: getAppointmentReturnTo() } })
+  router.push({
+    name: 'user-detail',
+    params: { id: patient.id },
+    query: { returnTo: getAppointmentReturnTo() },
+    state: { userSnapshot: JSON.stringify(patient) },
+  })
 }
 
 function goToDoctors() {
