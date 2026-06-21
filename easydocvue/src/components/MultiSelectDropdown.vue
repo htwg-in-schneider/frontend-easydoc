@@ -128,7 +128,10 @@ onBeforeUnmount(() => {
 }
 
 .variant-hero .select-trigger {
-  font-size: 16px;
+  min-height: 64px;
+  padding: 0 18px;
+  font-size: 17px;
+  border-radius: 14px;
 }
 
 .variant-compact .select-trigger {
@@ -153,7 +156,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  z-index: 2000;
+  z-index: 4000;
   display: grid;
   width: 100%;
   min-width: 100%;

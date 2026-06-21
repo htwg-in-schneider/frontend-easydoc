@@ -1,124 +1,150 @@
 <script setup lang="ts">
-import goal1 from '@/assets/images/Goal1.png'
-import goal2 from '@/assets/images/Goal2.png'
-import goal3 from '@/assets/images/Goal3.png'
-import goal4 from '@/assets/images/Goal4.png'
-
-const goals = [
+const stats = [
   {
-    image: goal1,
-    title: 'Schneller Zugang zur passenden Behandlung',
-    text: 'Patienten finden in wenigen Sekunden den richtigen Arzt.',
+    value: '1.000+',
+    label: 'Ärzte im Netzwerk',
+    icon: 'mdi-account-group-outline',
   },
   {
-    image: goal2,
-    title: 'Effiziente Auslastung für Ärzte',
-    text: 'Freie Termine werden sinnvoll vergeben und Leerlauf reduziert.',
+    value: '10.000+',
+    label: 'erfolgreiche Termine',
+    icon: 'mdi-calendar-check-outline',
   },
   {
-    image: goal3,
-    title: 'Einfache und intuitive Nutzung',
-    text: 'Keine komplizierten Prozesse – einfach suchen, finden, fertig.',
-  },
-  {
-    image: goal4,
-    title: 'Bessere Orientierung im Gesundheitssystem',
-    text: 'Wir helfen dabei, die richtige Entscheidung zu treffen.',
+    value: '2.500+',
+    label: 'zufriedene Patienten',
+    icon: 'mdi-emoticon-happy-outline',
   },
 ]
 </script>
 
 <template>
-  <section class="ziele">
-    <h2>Unsere Ziele</h2>
+  <section class="kpi-section">
+    <div class="kpi-container">
+      <div class="kpi-copy">
+        <span class="section-kicker">EasyDoc in Zahlen</span>
+        <h2>Vertrauen, Reichweite und klare Orientierung</h2>
+        <p>Die wichtigsten Kennzahlen auf einen Blick, kompakt und ohne Ablenkung.</p>
+      </div>
 
-    <div class="ziele-grid">
-      <div v-for="(goal, index) in goals" :key="index" class="ziel-card">
-        <img :src="goal.image" :alt="goal.title">
-        <div>
-          <h3>{{ goal.title }}</h3>
-          <p>{{ goal.text }}</p>
-        </div>
+      <div class="kpi-grid">
+        <article v-for="stat in stats" :key="stat.label" class="kpi-card">
+          <div class="kpi-icon">
+            <v-icon size="24" :icon="stat.icon" />
+          </div>
+          <div class="kpi-text">
+            <strong>{{ stat.value }}</strong>
+            <span>{{ stat.label }}</span>
+          </div>
+        </article>
       </div>
     </div>
   </section>
 </template>
 
 <style scoped>
-.ziele {
-  text-align: center;
-  padding: 80px 20px;
+.kpi-section {
+  position: relative;
+  z-index: 1;
+  padding: 0 24px 104px;
 }
 
-.ziele h2 {
-  font-size: 42px;
-  margin-bottom: 50px;
-}
-
-.ziele-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 30px;
-  max-width: 1000px;
+.kpi-container {
+  max-width: 1440px;
   margin: 0 auto;
 }
 
-.ziel-card {
+.kpi-copy {
+  max-width: 760px;
+  margin-bottom: 24px;
+}
+
+.section-kicker {
+  display: inline-flex;
+  margin-bottom: 12px;
+  color: #155dfc;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.kpi-copy h2 {
+  margin: 0 0 10px;
+  color: #13213c;
+  font-size: clamp(1.8rem, 2.6vw, 2.9rem);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+}
+
+.kpi-copy p {
+  margin: 0;
+  color: #5d6a82;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.kpi-card {
   display: flex;
   align-items: center;
-  gap: 20px;
-  background: #f8fafc;
-  padding: 25px;
-  border-radius: 20px;
-  text-align: left;
+  gap: 16px;
+  min-height: 112px;
+  padding: 22px 24px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(216, 227, 247, 0.9);
+  border-radius: 24px;
+  box-shadow: 0 18px 40px rgba(24, 58, 150, 0.08);
 }
 
-.ziel-card img {
-  width: 80px;
-  flex-shrink: 0;
+.kpi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  color: #155dfc;
+  background: #eef4ff;
+  border-radius: 18px;
 }
 
-.ziel-card h3 {
-  font-size: 22px;
-  margin: 0 0 8px;
+.kpi-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
-.ziel-card p {
-  color: #666;
-  font-size: 18px;
-  margin: 0;
+.kpi-text strong {
+  color: #155dfc;
+  font-size: clamp(1.8rem, 2.1vw, 2.5rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
 }
 
-@media (max-width: 768px) {
-  .ziele {
-    padding: 50px 15px;
-  }
+.kpi-text span {
+  margin-top: 6px;
+  color: #405069;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
 
-  .ziele h2 {
-    font-size: 32px;
-  }
-
-  .ziele-grid {
+@media (max-width: 980px) {
+  .kpi-grid {
     grid-template-columns: 1fr;
-    gap: 20px;
   }
+}
 
-  .ziel-card {
-    max-width: 320px;
-    padding: 18px;
-    margin: 0 auto;
-  }
-
-  .ziel-card img {
-    width: 60px;
-  }
-
-  .ziel-card h3 {
-    font-size: 18px;
-  }
-
-  .ziel-card p {
-    font-size: 15px;
+@media (max-width: 720px) {
+  .kpi-section {
+    padding-inline: 16px;
+    padding-bottom: 84px;
   }
 }
 </style>

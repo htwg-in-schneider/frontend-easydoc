@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useDoctorStore } from '@/stores/doctors'
 import { buildDoctorQuery, normalizeSelection } from '@/utils/doctorFilters'
 import MultiSelectDropdown from '@/components/MultiSelectDropdown.vue'
-import bgImage from '@/assets/images/Background_City.svg'
+import heroImage from '@/assets/images/Dcotor background.png'
 
 const router = useRouter()
 const doctorStore = useDoctorStore()
@@ -14,6 +14,13 @@ const { doctorTypes, cities } = storeToRefs(doctorStore)
 const selectedTypes = ref<string[]>([])
 const selectedCities = ref<string[]>([])
 
+const heroStyle = computed(() => ({
+  backgroundImage: [
+    'linear-gradient(90deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.96) 28%, rgba(255, 255, 255, 0.82) 46%, rgba(255, 255, 255, 0.30) 68%, rgba(255, 255, 255, 0.06) 84%, rgba(255, 255, 255, 0) 100%)',
+    `url(${heroImage})`,
+  ].join(', '),
+}))
+
 onMounted(async () => {
   try {
     await Promise.all([
@@ -21,7 +28,7 @@ onMounted(async () => {
       cities.value.length === 0 ? doctorStore.fetchCities() : Promise.resolve(),
     ])
   } catch {
-    // Fallback: keine Auswahl vorbelegt
+    // Die Suchfunktion bleibt auch dann nutzbar, wenn Optionen später geladen werden.
   }
 })
 
@@ -37,209 +44,246 @@ function handleFindDoctor() {
 </script>
 
 <template>
-  <div class="background-img" :style="{ backgroundImage: `url(${bgImage})` }">
-    <div class="hero-copy">
-      <span class="hero-kicker">EasyDoc</span>
-      <h1 class="hero-heading">Finden Sie den passenden Arzt in Ihrer Nähe.</h1>
-    </div>
+  <section class="hero-section" :style="heroStyle">
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <span class="hero-kicker">EasyDoc</span>
+        <h1 class="hero-heading">
+          <span class="hero-heading-line">Finden Sie den</span>
+          <span class="hero-heading-line">
+            <span class="hero-heading-accent">passenden Arzt</span>
+            <span> in Ihrer Nähe.</span>
+          </span>
+        </h1>
+        <p class="hero-description">
+          EasyDoc verbindet Sie mit passenden Fachärzten, klaren Informationen und einer schnellen Terminübersicht.
+        </p>
+        <p class="hero-subline">
+          Einfach, schnell und vertrauenswürdig den richtigen Arzt finden.
+        </p>
 
-    <div class="arzt-finden-box">
-      <div class="suchfelder">
-        <MultiSelectDropdown
-          v-model="selectedTypes"
-          class="search-field"
-          variant="hero"
-          placeholder="Arzt-Typ auswählen"
-          :options="doctorTypes.map((type) => ({ value: type.name, label: type.name }))"
-          style="width: min(100%, 400px); height: 55px;"
-        />
+        <div class="search-card">
+          <div class="search-row">
+            <MultiSelectDropdown
+              v-model="selectedTypes"
+              class="search-field"
+              variant="hero"
+              placeholder="Arzt-Typ auswählen"
+              :options="doctorTypes.map((type) => ({ value: type.name, label: type.name }))"
+            />
 
-        <MultiSelectDropdown
-          v-model="selectedCities"
-          class="search-field"
-          variant="hero"
-          placeholder="Ort auswählen"
-          :options="cities.map((city) => ({ value: city.name, label: city.name }))"
-          style="width: min(100%, 400px); height: 55px;"
-        />
+            <MultiSelectDropdown
+              v-model="selectedCities"
+              class="search-field"
+              variant="hero"
+              placeholder="Ort auswählen"
+              :options="cities.map((city) => ({ value: city.name, label: city.name }))"
+            />
+
+            <button type="button" class="find-btn" @click="handleFindDoctor">
+              <v-icon size="18">mdi-magnify</v-icon>
+              Arzt finden
+            </button>
+          </div>
+
+          <div class="search-hint-row">
+            <span><v-icon size="16">mdi-account-group-outline</v-icon> Über 1.000 Ärzte</span>
+            <span><v-icon size="16">mdi-calendar-clock-outline</v-icon> Schnelle Terminvergabe</span>
+            <span><v-icon size="16">mdi-shield-check-outline</v-icon> Vertrauenswürdige Bewertungen</span>
+          </div>
+        </div>
       </div>
-
-      <div class="arzt-finden">
-        <button @click="handleFindDoctor" class="btn-find-doctor">Arzt finden</button>
-      </div>
     </div>
-  </div>
+  </section>
 </template>
 
 <style scoped>
-.background-img {
+.hero-section {
   position: relative;
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  z-index: 2;
+  overflow: visible;
+  min-height: 720px;
+  padding: 44px 24px 110px;
+  background-color: #f7fbff;
+  background-position: center right;
   background-size: cover;
-  background-position: center;
   background-repeat: no-repeat;
 }
 
-.background-img::before {
+.hero-section::after {
   position: absolute;
   inset: 0;
   content: '';
-  background: rgba(11, 31, 74, 0.28);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.12) 28%, rgba(255, 255, 255, 0.18) 100%);
+  pointer-events: none;
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 2;
+  max-width: 1440px;
+  margin: 0 auto;
 }
 
 .hero-copy {
-  position: relative;
-  z-index: 2;
-  width: min(900px, 90%);
-  margin: 0 auto;
-  text-align: center;
-  color: #ffffff;
-  text-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 700px;
+  padding-top: 18px;
 }
 
 .hero-kicker {
-  display: inline-block;
-  margin-bottom: 12px;
-  font-size: 15px;
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 8px 14px;
+  color: #155dfc;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.82);
+  border-radius: 999px;
+  box-shadow: 0 10px 22px rgba(21, 93, 252, 0.08);
 }
 
 .hero-heading {
   margin: 0;
-  font-size: 40px;
-  line-height: 1.2;
+  color: #13213c;
+  font-size: clamp(2.7rem, 4.3vw, 5rem);
+  line-height: 1.02;
   font-weight: 800;
-  white-space: nowrap;
-  transition: transform 0.3s ease;
+  letter-spacing: -0.045em;
+  max-width: 13.5ch;
 }
 
-.hero-heading:hover {
-  transform: scale(1.05);
+.hero-heading-line {
+  display: block;
 }
 
-.hero-copy p {
-  margin: 16px 0 0;
-  font-size: 19px;
+.hero-heading-accent {
+  color: #155dfc;
+}
+
+.hero-description {
+  max-width: 40rem;
+  margin: 0;
+  color: #5d6a82;
+  font-size: clamp(1.02rem, 1.25vw, 1.16rem);
+  line-height: 1.7;
+}
+
+.hero-subline {
+  max-width: 34rem;
+  margin: 0;
+  color: #27406d;
+  font-size: 15px;
   font-weight: 600;
+  line-height: 1.5;
 }
 
-.arzt-finden-box {
-  position: relative;
-  z-index: 2;
-  width: 1000px;
-  max-width: 90%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
+.search-card {
+  width: min(100%, 900px);
+  margin-top: 10px;
   padding: 22px;
-  margin: 40px auto 0;
   background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(216, 227, 247, 0.9);
-  border-radius: 16px;
-  box-shadow: 0 20px 50px rgba(24, 58, 150, 0.24);
+  border: 1px solid rgba(216, 227, 247, 0.95);
+  border-radius: 30px;
+  box-shadow: 0 24px 50px rgba(24, 58, 150, 0.12);
+  backdrop-filter: blur(16px);
 }
 
-.suchfelder {
-  display: flex;
-  gap: 20px;
-  width: 100%;
-  justify-content: center;
+.search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: stretch;
 }
 
-.btn-find-doctor {
+.search-field {
+  min-width: 0;
+  height: 64px;
+}
+
+.find-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 810px;
-  max-width: 90vw;
-  height: 58px;
+  gap: 10px;
+  min-width: 210px;
   padding: 0 28px;
   color: #ffffff;
-  font-size: 22px;
+  font-size: 17px;
   font-weight: 700;
-  background: #155dfc;
+  background: linear-gradient(135deg, #155dfc 0%, #1e65f2 100%);
   border: none;
-  border-radius: 10px;
+  border-radius: 16px;
+  box-shadow: 0 18px 30px rgba(21, 93, 252, 0.22);
   cursor: pointer;
-  transition: background 0.3s;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.btn-find-doctor:hover {
-  background: #0f4ad4;
+.find-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 22px 36px rgba(21, 93, 252, 0.28);
 }
 
-@media (max-width: 1024px) {
-  .hero-heading {
-    font-size: 42px;
-  }
+.search-hint-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 16px;
+  padding-top: 14px;
+  color: #405069;
+  font-size: 14px;
+  font-weight: 600;
+  border-top: 1px solid rgba(216, 227, 247, 0.72);
 }
 
-@media (max-width: 768px) {
-  .hero-heading {
-    font-size: 28px;
-    white-space: normal;
-    line-height: 1.3;
+.search-hint-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-hint-row :deep(.v-icon) {
+  color: #155dfc;
+}
+
+@media (max-width: 1120px) {
+  .hero-section {
+    min-height: auto;
+    padding-bottom: 92px;
+    background-position: center center;
   }
 
   .hero-copy {
-    margin-bottom: 20px;
-  }
-
-  .hero-copy p {
-    font-size: 16px;
-  }
-
-  .suchfelder {
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .search-field {
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .btn-find-doctor {
-    width: 100%;
-    font-size: 18px;
-    height: 50px;
-  }
-
-  .arzt-finden-box {
-    gap: 12px;
-    padding: 16px;
+    max-width: 760px;
   }
 }
 
-@media (max-width: 480px) {
-  .hero-heading {
-    font-size: 24px;
+@media (max-width: 820px) {
+  .hero-section {
+    padding: 32px 16px 68px;
   }
 
-  .hero-kicker {
-    font-size: 12px;
+  .search-card {
+    width: 100%;
   }
 
-  .hero-copy p {
-    font-size: 14px;
+  .search-row {
+    grid-template-columns: 1fr;
   }
 
-  .select-trigger {
-    font-size: 14px;
+  .find-btn {
+    width: 100%;
+    min-width: 0;
+    height: 54px;
   }
 
-  .btn-find-doctor {
-    font-size: 16px;
-    height: 45px;
+  .search-hint-row {
+    gap: 12px 18px;
   }
 }
 </style>
