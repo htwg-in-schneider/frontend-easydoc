@@ -76,6 +76,10 @@ onMounted(async () => {
   } finally {
     isLoading.value = false
   }
+
+  if (route.query.scrollTo === 'top') {
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }
 })
 </script>
 

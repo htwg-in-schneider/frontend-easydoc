@@ -22,6 +22,10 @@ onMounted(async () => {
   }
   doctor.value = await doctorStore.getById(id)
   loading.value = false
+
+  if (route.query.scrollTo === 'top') {
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }
 })
 
 function goToSlotSelection() {
