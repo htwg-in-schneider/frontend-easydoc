@@ -87,7 +87,7 @@ type UserUpdatePayload = {
   imageUrl: string | null
   distance: number | null
   consultationFee: number | null
-  specialization: DoctorType | null
+  specializationId: number | null
 }
 
 const route = useRoute()
@@ -150,7 +150,7 @@ function createDefaultForm(): UserEditForm {
     country: '',
     imageUrl: '',
     distance: null,
-    consultationFee: null,
+    consultationFee: 0,
     auth0Id: '',
     createdAt: '',
     updatedAt: '',
@@ -191,6 +191,10 @@ function normalizePayloadNumber(value: unknown) {
   if (value === null || value === undefined || value === '') return null
   const numeric = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(numeric) ? numeric : null
+}
+
+function normalizeStoredFee(value: unknown) {
+  return normalizePayloadNumber(value) ?? 0
 }
 
 function buildDisplayName(firstName = form.value.firstName, lastName = form.value.lastName) {
@@ -263,8 +267,8 @@ function toUserPayload(): UserUpdatePayload {
     country: normalizePayloadText(form.value.country),
     imageUrl: normalizePayloadText(form.value.imageUrl),
     distance: normalizePayloadNumber(form.value.distance),
-    consultationFee: normalizePayloadNumber(form.value.consultationFee),
-    specialization: isDoctorRole.value ? selectedDoctorTypeValue() : null,
+    consultationFee: normalizeStoredFee(form.value.consultationFee),
+    specializationId: isDoctorRole.value ? doctorTypeId.value : null,
   }
 }
 
@@ -293,7 +297,7 @@ function buildSnapshot(): BackendProfile | null {
     country: normalizePayloadText(form.value.country),
     imageUrl: normalizePayloadText(form.value.imageUrl),
     distance: normalizePayloadNumber(form.value.distance),
-    consultationFee: normalizePayloadNumber(form.value.consultationFee),
+    consultationFee: normalizeStoredFee(form.value.consultationFee),
     createdAt: originalUser.value?.createdAt ?? null,
     updatedAt: originalUser.value?.updatedAt ?? null,
     specialization: isDoctorRole.value ? selectedDoctorTypeValue() : null,
@@ -311,6 +315,19 @@ function routeWithSnapshot(target: string, snapshot: BackendProfile | null) {
       userSnapshot: JSON.stringify(snapshot ?? buildSnapshot()),
     },
   })
+}
+
+async function readErrorMessage(response: Response) {
+  const rawMessage = await response.text().catch(() => '')
+  const trimmed = rawMessage.trim()
+  if (!trimmed) return ''
+
+  try {
+    const parsed = JSON.parse(trimmed) as { message?: string; error?: string; detail?: string }
+    return parsed.message || parsed.error || parsed.detail || trimmed
+  } catch {
+    return trimmed
+  }
 }
 
 function goBack() {
@@ -428,7 +445,7 @@ async function loadUser() {
       country: normalizeTextField(user.country),
       imageUrl: normalizeTextField(user.imageUrl),
       distance: normalizePayloadNumber(user.distance),
-      consultationFee: normalizePayloadNumber(user.consultationFee),
+      consultationFee: normalizeStoredFee(user.consultationFee),
       auth0Id: normalizeTextField(user.auth0Id),
       createdAt: user.createdAt ?? '',
       updatedAt: user.updatedAt ?? '',
@@ -489,7 +506,12 @@ async function onUpdate() {
     )
 
     if (!response.ok) {
-      throw new Error(`Benutzer konnte nicht gespeichert werden: ${response.status}`)
+      const backendMessage = await readErrorMessage(response)
+      throw new Error(
+        backendMessage
+          ? `Benutzer konnte nicht gespeichert werden: ${response.status} - ${backendMessage}`
+          : `Benutzer konnte nicht gespeichert werden: ${response.status}`,
+      )
     }
 
     const savedUser = await response.json() as BackendProfile
@@ -536,7 +558,12 @@ async function onDelete() {
     })
 
     if (!response.ok) {
-      throw new Error(`Benutzer konnte nicht gelöscht werden: ${response.status}`)
+      const backendMessage = await readErrorMessage(response)
+      throw new Error(
+        backendMessage
+          ? `Benutzer konnte nicht gelöscht werden: ${response.status} - ${backendMessage}`
+          : `Benutzer konnte nicht gelöscht werden: ${response.status}`,
+      )
     }
 
     await popup.showMessage({
