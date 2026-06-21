@@ -1,6 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { normalizeSelection } from '@/utils/doctorFilters'
+import {
+  formatUserName,
+  normalizeUserStatus,
+  normalizeUserTitle,
+  type UserStatus,
+  type UserTitle,
+} from '@/utils/userFields'
 
 const API_BASE = `${(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')}/api`
 
@@ -14,11 +21,12 @@ export type DoctorType = Specialization
 export interface User {
   id: number
   auth0Id?: string | null
-  title: string | null
+  name?: string | null
+  title: UserTitle | null
   firstName: string
   lastName: string
   practiceName: string | null
-  status: string | null
+  status: UserStatus | null
   rating: number | null
   phoneNumber: string | null
   email: string | null
@@ -36,7 +44,7 @@ export interface User {
 }
 
 export type Doctor = User
-export type DoctorPayload = Omit<User, 'id' | 'auth0Id'> & {
+export type DoctorPayload = Omit<User, 'id' | 'auth0Id' | 'rating'> & {
   specialization?: Specialization | null
   doctorType?: Specialization | null
 }
@@ -67,6 +75,8 @@ export interface Appointment {
   endDateTime: string
   status: string
   price: number | null
+  rating: number | null
+  ratingComment: string | null
   reason: string | null
   doctor?: Doctor | null
   patient?: UserSummary | null
@@ -82,6 +92,11 @@ export interface AppointmentPayload {
   startDateTime: string
   reason?: string | null
   dienstleistungId?: number | null
+}
+
+export interface AppointmentRatingPayload {
+  rating?: number | null
+  ratingComment?: string | null
 }
 
 export interface AvailabilitySlot {
@@ -204,6 +219,8 @@ function normalizeDoctor(doctor: any): Doctor {
   const specialization = normalizeSpecialization(doctor.specialization ?? doctor.doctorType)
   return {
     ...doctor,
+    title: normalizeUserTitle(doctor.title),
+    status: normalizeUserStatus(doctor.status),
     specialization,
     doctorType: specialization,
   }
@@ -212,9 +229,14 @@ function normalizeDoctor(doctor: any): Doctor {
 function normalizeAppointment(appointment: any): Appointment {
   const patient = normalizeUserSummary(appointment.patient ?? appointment.user)
   const service = normalizeAppointmentService(appointment.service ?? appointment.dienstleistung)
+  const ratingValue = Number(appointment.rating)
   return {
     ...appointment,
     status: typeof appointment.status === 'string' ? appointment.status.toUpperCase() : String(appointment.status ?? ''),
+    rating: Number.isFinite(ratingValue) ? ratingValue : null,
+    ratingComment: typeof appointment.ratingComment === 'string' && appointment.ratingComment.trim()
+      ? appointment.ratingComment.trim()
+      : null,
     patient,
     user: patient,
     service,
@@ -240,8 +262,8 @@ function matchesSpecialization(doctor: User, doctorTypeFilter?: string) {
   )
 }
 
-export function formatDoctorName(doctor: Pick<User, 'title' | 'firstName' | 'lastName'>) {
-  return [doctor.title, doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
+export function formatDoctorName(doctor: Pick<User, 'title' | 'firstName' | 'lastName' | 'name'>) {
+  return formatUserName(doctor)
 }
 
 export function getDoctorTypeName(doctorType: Specialization | null | undefined) {
@@ -436,6 +458,14 @@ export const useDoctorStore = defineStore('doctors', () => {
     })
   }
 
+  async function rateAppointment(id: number, payload: AppointmentRatingPayload, token: string) {
+    return await requestJson<Appointment>(`${API_BASE}/appointments/${id}/rating`, {
+      method: 'PATCH',
+      headers: jsonHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  }
+
   async function deleteAppointment(id: number, token: string) {
     return await requestJson<void>(`${API_BASE}/appointments/${id}`, {
       method: 'DELETE',
@@ -466,6 +496,7 @@ export const useDoctorStore = defineStore('doctors', () => {
     removeAvailabilityRule,
     bookAppointment,
     cancelAppointment,
+    rateAppointment,
     deleteAppointment,
   }
 })

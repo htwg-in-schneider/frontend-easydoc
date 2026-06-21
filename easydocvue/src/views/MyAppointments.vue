@@ -282,6 +282,10 @@ const selectedAppointment = computed(() => {
   return sortedAppointments.value.find((appointment) => appointment.id === selectedAppointmentId.value) ?? null
 })
 
+const appointmentRating = ref<number | null>(null)
+const appointmentRatingComment = ref('')
+const isRatingSaving = ref(false)
+
 const selectedAppointmentData = computed(() => {
   const appointment = selectedAppointment.value
   if (!appointment) return null
@@ -317,11 +321,26 @@ const selectedAppointmentData = computed(() => {
     patientEmailUrl: getAppointmentPatientEmailUrl(appointment),
     patientPhone: patient?.phoneNumber ?? '',
     patientEmail: patient?.email ?? '',
+    rating: appointment.rating ?? null,
+    ratingComment: appointment.ratingComment ?? '',
     reason: appointment.reason?.trim() && appointment.reason.trim() !== getAppointmentServiceLabel(appointment)
       ? appointment.reason.trim()
       : '',
   }
 })
+
+const canRateSelectedAppointment = computed(() => {
+  const appointment = selectedAppointment.value
+  if (!appointment) return false
+  if (isAppointmentCancelled(appointment)) return false
+  if (new Date(appointment.endDateTime).getTime() > Date.now()) return false
+  return isAdmin.value || isPatient.value
+})
+
+watch(selectedAppointment, (appointment) => {
+  appointmentRating.value = appointment?.rating ?? null
+  appointmentRatingComment.value = appointment?.ratingComment ?? ''
+}, { immediate: true })
 
 const selectedDateLabel = computed(() => {
   if (!selectedDateKey.value) return ''
@@ -646,6 +665,38 @@ async function deleteAppointment(appointment: Appointment) {
       message: error instanceof Error ? error.message : 'Der Termin konnte nicht gelöscht werden.',
       variant: 'danger',
     })
+  }
+}
+
+async function saveAppointmentRating() {
+  const appointment = selectedAppointment.value
+  if (!appointment) return
+
+  try {
+    isRatingSaving.value = true
+    const token = await getAccessTokenSilently()
+    await doctorStore.rateAppointment(
+      appointment.id,
+      {
+        rating: appointmentRating.value,
+        ratingComment: appointmentRatingComment.value,
+      },
+      token,
+    )
+    await loadAppointments()
+    await popup.showMessage({
+      title: 'Bewertung gespeichert',
+      message: 'Die Arztbewertung wurde aktualisiert.',
+      variant: 'success',
+    })
+  } catch (error) {
+    await popup.showMessage({
+      title: 'Bewertung fehlgeschlagen',
+      message: error instanceof Error ? error.message : 'Die Bewertung konnte nicht gespeichert werden.',
+      variant: 'danger',
+    })
+  } finally {
+    isRatingSaving.value = false
   }
 }
 
@@ -1139,6 +1190,43 @@ onBeforeUnmount(() => {
             <div v-if="selectedAppointmentData.reason" class="hint-box">
               <h4>Hinweis</h4>
               <p>{{ selectedAppointmentData.reason }}</p>
+            </div>
+
+            <div v-if="canRateSelectedAppointment" class="rating-box">
+              <h4>Bewertung</h4>
+              <div class="rating-chip-row">
+                <button
+                  v-for="score in [5, 4, 3, 2, 1]"
+                  :key="score"
+                  type="button"
+                  class="rating-chip"
+                  :class="{ active: appointmentRating === score }"
+                  @click="appointmentRating = score"
+                >
+                  {{ score }} ★
+                </button>
+                <button
+                  type="button"
+                  class="rating-chip rating-chip--clear"
+                  :class="{ active: appointmentRating === null }"
+                  @click="appointmentRating = null"
+                >
+                  Löschen
+                </button>
+              </div>
+
+              <label class="rating-comment">
+                <span>Kommentar</span>
+                <textarea
+                  v-model="appointmentRatingComment"
+                  rows="3"
+                  placeholder="Optionales Feedback zum Termin"
+                />
+              </label>
+
+              <button class="primary-button" type="button" :disabled="isRatingSaving" @click="saveAppointmentRating">
+                {{ isRatingSaving ? 'Speichern...' : 'Bewertung speichern' }}
+              </button>
             </div>
           </section>
         </div>
@@ -2180,6 +2268,74 @@ onBeforeUnmount(() => {
   margin: 0;
   color: #7a4d00;
   font-size: 14px;
+}
+
+.rating-box {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  background: #f8fbff;
+  border: 1px solid #dce6f8;
+  border-radius: 18px;
+}
+
+.rating-box h4 {
+  margin: 0;
+  color: #1f2a44;
+  font-size: 14px;
+}
+
+.rating-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rating-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  color: #1f2a44;
+  background: #fff;
+  border: 1px solid #d8e3f7;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.rating-chip.active {
+  color: #155dfc;
+  background: rgba(21, 93, 252, 0.1);
+  border-color: rgba(21, 93, 252, 0.35);
+}
+
+.rating-chip--clear {
+  color: #64708a;
+}
+
+.rating-comment {
+  display: grid;
+  gap: 6px;
+  color: #64708a;
+  font-size: 13px;
+}
+
+.rating-comment textarea {
+  width: 100%;
+  min-height: 88px;
+  padding: 12px 14px;
+  color: #1f2a44;
+  background: #fff;
+  border: 1px solid #d8e3f7;
+  border-radius: 14px;
+  resize: vertical;
+}
+
+.rating-comment textarea:focus {
+  outline: none;
+  border-color: #155dfc;
+  box-shadow: 0 0 0 3px rgba(21, 93, 252, 0.12);
 }
 
 .appointment-modal__actions {

@@ -1,9 +1,15 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { normalizeUserStatus, normalizeUserTitle, type UserStatus, type UserTitle } from '@/utils/userFields'
 
 export type UserRole = 'USER' | 'DOCTOR' | 'ADMIN'
 
 export interface SpecializationRef {
+  id?: number | null
+  name?: string | null
+}
+
+export interface CityRef {
   id?: number | null
   name?: string | null
 }
@@ -17,23 +23,25 @@ export interface BackendProfile {
   role?: UserRole | null
   auth0Id?: string | null
   insurance?: string | null
-  status?: string | null
+  status?: UserStatus | null
   age?: number | null
   birthday?: string | null
-  title?: string | null
+  title?: UserTitle | null
   practiceName?: string | null
   rating?: number | null
   phoneNumber?: string | null
   website?: string | null
   street?: string | null
   postcode?: string | null
-  city?: string | null
+  city?: CityRef | string | null
   country?: string | null
   imageUrl?: string | null
   distance?: number | null
   consultationFee?: number | null
   specialization?: SpecializationRef | null
   doctorType?: SpecializationRef | null
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
@@ -78,6 +86,8 @@ export const useProfileStore = defineStore('profile', () => {
         const specialization = data.specialization ?? data.doctorType ?? null
         profile.value = {
           ...data,
+          status: normalizeUserStatus(data.status),
+          title: normalizeUserTitle(data.title),
           specialization,
           doctorType: specialization,
         }

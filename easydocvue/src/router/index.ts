@@ -6,7 +6,6 @@ import DoctorCatalog from '@/views/DoctorCatalog.vue'
 import MapDoctors from '@/views/MapDoctors.vue'
 import DoctorDetail from '@/views/DoctorDetail.vue'
 import CreateDoctor from '@/views/CreateDoctor.vue'
-import EditDoctor from '@/views/EditDoctor.vue'
 import Booking from '@/views/Booking.vue'
 import SlotSelection from '@/views/SlotSelection.vue'
 import BookingConfirmation from '@/views/BookingConfirmation.vue'
@@ -34,13 +33,14 @@ const routes = [
     component: DoctorDetail,
   },
   { path: '/doctor/create', component: CreateDoctor, beforeEnter: authGuard },
-  { path: '/doctor/edit/:id', name: 'doctor-edit', component: EditDoctor, beforeEnter: authGuard },
+  { path: '/doctor/edit/:id', name: 'doctor-edit', component: EditUser, beforeEnter: authGuard },
   { path: '/booking/:id', name: 'booking', component: Booking },
   { path: '/slot-selection', component: SlotSelection },
   { path: '/booking-confirmation', component: BookingConfirmation },
   { path: '/profile', name: 'profile', component: Profile, beforeEnter: authGuard },
   { path: '/my-bookings', name: 'my-bookings', component: MyAppointments, beforeEnter: authGuard },
   { path: '/admin/users', name: 'admin-users', component: AdminUsers, beforeEnter: authGuard },
+  { path: '/admin/users/create', name: 'user-create', component: EditUser, beforeEnter: authGuard },
   { path: '/users/view/:id', name: 'user-detail', component: UserOverview, beforeEnter: authGuard },
   { path: '/admin/users/edit/:id', name: 'user-edit', component: EditUser, beforeEnter: authGuard },
   { path: '/doctor/dashboard', name: 'doctor-dashboard', component: DoctorDashboard, beforeEnter: authGuard },

@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { useDoctorStore, type DoctorPayload, type DoctorType } from '@/stores/doctors'
 import { usePopupStore } from '@/stores/popup'
+import { userStatusOptions, userTitleOptions } from '@/utils/userFields'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
@@ -17,12 +18,11 @@ const { doctorTypes } = storeToRefs(doctorStore)
 type DoctorForm = Omit<DoctorPayload, 'doctorType'>
 
 const form = ref<DoctorForm>({
-  title: 'Dr. med.',
+  title: 'NONE',
   firstName: '',
   lastName: '',
   practiceName: '',
-  status: 'active',
-  rating: 0,
+  status: 'ACTIVE',
   phoneNumber: '',
   email: '',
   website: '',
@@ -84,7 +84,11 @@ async function onCreate() {
     <form novalidate @submit.prevent="onCreate">
       <div class="form-group">
         <label for="title">Titel</label>
-        <input id="title" type="text" v-model="form.title" placeholder="z.B. Dr. med.">
+        <select id="title" v-model="form.title">
+          <option v-for="option in userTitleOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
       </div>
 
       <div class="form-group">
@@ -120,12 +124,11 @@ async function onCreate() {
 
       <div class="form-group">
         <label for="status">Status</label>
-        <input id="status" type="text" v-model="form.status" placeholder="active">
-      </div>
-
-      <div class="form-group">
-        <label for="rating">Bewertung</label>
-        <input id="rating" type="number" v-model.number="form.rating" min="0" max="5" step="0.1">
+        <select id="status" v-model="form.status">
+          <option v-for="option in userStatusOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
       </div>
 
       <div class="form-group">

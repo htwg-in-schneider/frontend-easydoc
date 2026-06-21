@@ -2,9 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth0 } from '@auth0/auth0-vue'
-import { storeToRefs } from 'pinia'
 import { formatDoctorName, getDoctorTypeName, type AvailabilitySlot, type Doctor, useDoctorStore } from '@/stores/doctors'
-import { useProfileStore } from '@/stores/profile'
 import { usePopupStore } from '@/stores/popup'
 import { useServiceStore, type Dienstleistung } from '@/stores/services'
 import NavBar from '@/components/NavBar.vue'
@@ -13,10 +11,8 @@ import AppFooter from '@/components/AppFooter.vue'
 const router = useRouter()
 const route = useRoute()
 const doctorStore = useDoctorStore()
-const profileStore = useProfileStore()
 const popup = usePopupStore()
 const serviceStore = useServiceStore()
-const { profile } = storeToRefs(profileStore)
 const { isAuthenticated, loginWithRedirect, getAccessTokenSilently } = useAuth0()
 
 const doctor = ref<Doctor | null>(null)
@@ -289,10 +285,6 @@ async function confirmAppointment() {
   booking.value = true
   try {
     const token = await getAccessTokenSilently()
-    await profileStore.load(token)
-
-    if (!profile.value?.id) return
-
     const savedAppointment = await doctorStore.bookAppointment(
       {
         doctorId: doctor.value.id,

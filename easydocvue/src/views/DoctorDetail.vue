@@ -11,6 +11,7 @@ import {
 } from '@/stores/doctors'
 import { useProfileStore } from '@/stores/profile'
 import { buildGoogleMapsUrl, buildMailtoUrl, buildTelUrl, formatDoctorAddress, toExternalUrl } from '@/utils/doctorContact'
+import { formatUserStatusLabel, formatUserTitleLabel } from '@/utils/userFields'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
@@ -29,13 +30,15 @@ const specialtyName = computed(() => getDoctorTypeName(doctor.value?.doctorType 
 const practiceName = computed(() => doctor.value?.practiceName?.trim() || 'Praxis nicht hinterlegt')
 const doctorImage = computed(() => doctor.value?.imageUrl?.trim() || '')
 const avatarFallback = computed(() => {
-  const source = displayName.value || doctor.value?.email || 'D'
+  const source = [doctor.value?.firstName, doctor.value?.lastName, doctor.value?.name]
+    .filter(Boolean)
+    .join(' ') || doctor.value?.email || 'D'
   const parts = source.split(' ').filter(Boolean)
   if (parts.length >= 2) return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase()
   return source.slice(0, 2).toUpperCase()
 })
 const distanceLabel = computed(() => (doctor.value?.distance !== null && doctor.value?.distance !== undefined ? `${doctor.value.distance} km entfernt` : ''))
-const ratingLabel = computed(() => (doctor.value?.rating !== null && doctor.value?.rating !== undefined ? doctor.value.rating.toFixed(1) : ''))
+const ratingLabel = computed(() => (doctor.value?.rating !== null && doctor.value?.rating !== undefined ? doctor.value.rating.toFixed(1) : 'Noch keine Bewertungen'))
 const mapsUrl = computed(() => (doctor.value ? buildGoogleMapsUrl(doctor.value) : ''))
 const phoneUrl = computed(() => buildTelUrl(doctor.value?.phoneNumber))
 const emailUrl = computed(() => buildMailtoUrl(doctor.value?.email))
@@ -153,7 +156,7 @@ onMounted(async () => {
             <dl class="detail-list">
               <div>
                 <dt>Status</dt>
-                <dd>{{ displayValue(doctor.status) }}</dd>
+                <dd>{{ formatUserStatusLabel(doctor.status) }}</dd>
               </div>
               <div>
                 <dt>Praxis</dt>
@@ -175,7 +178,7 @@ onMounted(async () => {
             <dl class="detail-list detail-list--compact">
               <div>
                 <dt>Titel</dt>
-                <dd>{{ displayValue(doctor.title) }}</dd>
+                <dd>{{ formatUserTitleLabel(doctor.title) }}</dd>
               </div>
               <div>
                 <dt>Vorname</dt>

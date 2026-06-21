@@ -70,8 +70,7 @@ export function matchesDoctorFilters(doctor: Doctor, filters: DoctorSearchFilter
   const matchesRating =
     filters.minRating === undefined ||
     filters.minRating === null ||
-    doctor.rating === null ||
-    doctor.rating >= filters.minRating
+    (doctor.rating !== null && doctor.rating >= filters.minRating)
 
   const matchesDistance =
     filters.maxDistance === undefined ||

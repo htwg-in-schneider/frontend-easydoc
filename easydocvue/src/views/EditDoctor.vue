@@ -6,6 +6,7 @@ import { useAuth0 } from '@auth0/auth0-vue'
 import { useDoctorStore, type DoctorPayload, type DoctorType } from '@/stores/doctors'
 import { usePopupStore } from '@/stores/popup'
 import { useProfileStore } from '@/stores/profile'
+import { userStatusOptions, userTitleOptions } from '@/utils/userFields'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
@@ -22,12 +23,11 @@ const backTarget = computed(() => (typeof route.query.returnTo === 'string' && r
 type DoctorForm = Omit<DoctorPayload, 'doctorType'>
 
 const form = ref<DoctorForm>({
-  title: '',
+  title: 'NONE',
   firstName: '',
   lastName: '',
   practiceName: '',
-  status: '',
-  rating: null,
+  status: 'ACTIVE',
   phoneNumber: '',
   email: '',
   website: '',
@@ -79,12 +79,11 @@ onMounted(async () => {
   doctorTypeId.value = doctor.doctorType?.id ?? null
   currentDoctorType.value = doctor.doctorType ?? null
   form.value = {
-    title: doctor.title,
+    title: doctor.title ?? 'NONE',
     firstName: doctor.firstName,
     lastName: doctor.lastName,
     practiceName: doctor.practiceName,
-    status: doctor.status,
-    rating: doctor.rating,
+    status: doctor.status ?? 'ACTIVE',
     phoneNumber: doctor.phoneNumber,
     email: doctor.email,
     website: doctor.website,
@@ -161,7 +160,11 @@ async function onDelete() {
 
       <div class="form-group">
         <label for="title">Titel</label>
-        <input id="title" type="text" v-model="form.title" placeholder="z.B. Dr. med.">
+        <select id="title" v-model="form.title">
+          <option v-for="option in userTitleOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
       </div>
 
       <div class="form-group">
@@ -191,12 +194,11 @@ async function onDelete() {
 
       <div class="form-group">
         <label for="status">Status</label>
-        <input id="status" type="text" v-model="form.status">
-      </div>
-
-      <div class="form-group">
-        <label for="rating">Bewertung</label>
-        <input id="rating" type="number" v-model.number="form.rating" min="0" max="5" step="0.1">
+        <select id="status" v-model="form.status">
+          <option v-for="option in userStatusOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
       </div>
 
       <div class="form-group">

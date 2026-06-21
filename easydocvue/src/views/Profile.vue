@@ -31,6 +31,11 @@ const form = ref({
   insurance: '',
   birthday: '',
   imageUrl: '',
+  phoneNumber: '',
+  street: '',
+  postcode: '',
+  city: '',
+  country: '',
 })
 
 function calculateAge(birthday?: string | null) {
@@ -82,6 +87,12 @@ function displayValue(value: string | number | null | undefined) {
   return value === null || value === undefined || value === '' ? 'Nicht hinterlegt' : value
 }
 
+function normalizeCityValue(city: BackendProfile['city']) {
+  if (!city) return ''
+  if (typeof city === 'string') return city
+  return city.name ?? ''
+}
+
 function syncForm(source: BackendProfile | null) {
   form.value = {
     firstName: source?.firstName ?? '',
@@ -90,6 +101,11 @@ function syncForm(source: BackendProfile | null) {
     insurance: source?.insurance ?? '',
     birthday: source?.birthday ?? '',
     imageUrl: source?.imageUrl?.trim() || user.value?.picture || '',
+    phoneNumber: source?.phoneNumber ?? '',
+    street: source?.street ?? '',
+    postcode: source?.postcode ?? '',
+    city: normalizeCityValue(source?.city),
+    country: source?.country ?? '',
   }
 }
 
@@ -129,6 +145,11 @@ async function saveProfile() {
         insurance: form.value.insurance,
         birthday: form.value.birthday || null,
         imageUrl: form.value.imageUrl,
+        phoneNumber: form.value.phoneNumber,
+        street: form.value.street,
+        postcode: form.value.postcode,
+        city: form.value.city,
+        country: form.value.country,
       }),
     })
 
@@ -219,8 +240,33 @@ watch(isAuthenticated, (authenticated) => {
           </label>
 
           <label>
+            Telefon
+            <input v-model="form.phoneNumber" type="tel" placeholder="+49 ...">
+          </label>
+
+          <label>
             Geburtsdatum
             <input v-model="form.birthday" type="date">
+          </label>
+
+          <label>
+            Straße
+            <input v-model="form.street" type="text" placeholder="Straße und Hausnummer">
+          </label>
+
+          <label>
+            Postleitzahl
+            <input v-model="form.postcode" type="text" placeholder="PLZ">
+          </label>
+
+          <label>
+            Stadt
+            <input v-model="form.city" type="text" placeholder="Ort">
+          </label>
+
+          <label>
+            Land
+            <input v-model="form.country" type="text" placeholder="Land">
           </label>
 
         </div>

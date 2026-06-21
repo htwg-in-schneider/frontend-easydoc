@@ -5,6 +5,7 @@ import { useAuth0 } from '@auth0/auth0-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { API_BASE, roleRedirectPath, useProfileStore, type BackendProfile } from '@/stores/profile'
 import { useDoctorStore, type City } from '@/stores/doctors'
+import { formatUserName, formatUserStatusLabel } from '@/utils/userFields'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
@@ -19,11 +20,14 @@ const users = ref<BackendProfile[]>([])
 const search = ref('')
 const selectedCities = ref<string[]>([])
 const selectedRoles = ref<string[]>([])
+const selectedSort = ref('createdAt-desc')
 const visibleLimit = ref(10)
 const isCityOpen = ref(false)
 const isRoleOpen = ref(false)
+const isSortOpen = ref(false)
 const cityDropdownRef = ref<HTMLElement | null>(null)
 const roleDropdownRef = ref<HTMLElement | null>(null)
+const sortDropdownRef = ref<HTMLElement | null>(null)
 const message = ref('')
 const isLoading = ref(false)
 
@@ -31,6 +35,13 @@ const roleOptions = [
   { value: 'USER', label: 'User' },
   { value: 'DOCTOR', label: 'Doktor' },
   { value: 'ADMIN', label: 'Admin' },
+] as const
+
+const sortOptions = [
+  { value: 'createdAt-desc', label: 'Erstellt: neueste zuerst' },
+  { value: 'createdAt-asc', label: 'Erstellt: älteste zuerst' },
+  { value: 'updatedAt-desc', label: 'Aktualisiert: neueste zuerst' },
+  { value: 'updatedAt-asc', label: 'Aktualisiert: älteste zuerst' },
 ] as const
 
 const filteredUsers = computed(() => {
@@ -46,6 +57,7 @@ const filteredUsers = computed(() => {
       [
         user.firstName,
         user.lastName,
+        user.title,
         user.email,
         user.role,
         user.status,
@@ -65,8 +77,33 @@ const filteredUsers = computed(() => {
   })
 })
 
-const visibleUsers = computed(() => filteredUsers.value.slice(0, visibleLimit.value))
-const canLoadMoreUsers = computed(() => visibleLimit.value < filteredUsers.value.length)
+const sortedUsers = computed(() => {
+  const [field, direction] = selectedSort.value.split('-') as ['createdAt' | 'updatedAt', 'asc' | 'desc']
+
+  const score = (value: unknown) => {
+    if (typeof value !== 'string' || !value.trim()) return null
+    const timestamp = new Date(value).getTime()
+    return Number.isFinite(timestamp) ? timestamp : null
+  }
+
+  return [...filteredUsers.value].sort((left, right) => {
+    const leftScore = score(left[field])
+    const rightScore = score(right[field])
+
+    if (leftScore === null && rightScore === null) return (left.id ?? 0) - (right.id ?? 0)
+    if (leftScore === null) return 1
+    if (rightScore === null) return -1
+
+    if (leftScore !== rightScore) {
+      return direction === 'asc' ? leftScore - rightScore : rightScore - leftScore
+    }
+
+    return (left.id ?? 0) - (right.id ?? 0)
+  })
+})
+
+const visibleUsers = computed(() => sortedUsers.value.slice(0, visibleLimit.value))
+const canLoadMoreUsers = computed(() => visibleLimit.value < sortedUsers.value.length)
 
 const selectedCityLabel = computed(() => {
   if (selectedCities.value.length === 0) return 'Alle Orte'
@@ -81,6 +118,8 @@ const selectedRoleLabel = computed(() => {
   }
   return `${selectedRoles.value.length} Rollen ausgewählt`
 })
+
+const selectedSortLabel = computed(() => sortOptions.find((sort) => sort.value === selectedSort.value)?.label || 'Erstellt: neueste zuerst')
 
 function displayValue(value: string | number | null | undefined) {
   return value === null || value === undefined || value === '' ? 'Nicht hinterlegt' : value
@@ -97,7 +136,7 @@ function getCityName(city: unknown) {
 }
 
 function displayName(user: BackendProfile) {
-  return [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Nicht hinterlegt'
+  return formatUserName(user) || 'Nicht hinterlegt'
 }
 
 function getAvatarInitials(user: BackendProfile) {
@@ -105,6 +144,14 @@ function getAvatarInitials(user: BackendProfile) {
   const lastName = user.lastName?.trim() || ''
   if (firstName || lastName) {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+  }
+
+  if (user.name?.trim()) {
+    const parts = user.name.trim().split(/\s+/).filter(Boolean)
+    if (parts.length >= 2) {
+      return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase()
+    }
+    return user.name.trim().slice(0, 2).toUpperCase()
   }
 
   const email = user.email?.trim() || ''
@@ -133,6 +180,11 @@ function toggleRole(role: string) {
   }
 }
 
+function selectSort(sort: string) {
+  selectedSort.value = sort
+  isSortOpen.value = false
+}
+
 function isCitySelected(city: string) {
   return selectedCities.value.includes(city)
 }
@@ -152,6 +204,10 @@ function onDocumentClick(event: MouseEvent) {
   if (roleDropdownRef.value && !roleDropdownRef.value.contains(target)) {
     isRoleOpen.value = false
   }
+
+  if (sortDropdownRef.value && !sortDropdownRef.value.contains(target)) {
+    isSortOpen.value = false
+  }
 }
 
 function openUser(user: BackendProfile) {
@@ -161,6 +217,13 @@ function openUser(user: BackendProfile) {
     params: { id: user.id },
     query: { returnTo: route.fullPath },
     state: { userSnapshot: JSON.stringify(user) },
+  })
+}
+
+function openCreateUser() {
+  router.push({
+    name: 'user-create',
+    query: { returnTo: route.fullPath },
   })
 }
 
@@ -207,7 +270,7 @@ onMounted(async () => {
   ])
 })
 
-watch([search, selectedCities, selectedRoles], () => {
+watch([search, selectedCities, selectedRoles, selectedSort], () => {
   visibleLimit.value = 10
 }, { deep: true })
 
@@ -220,7 +283,7 @@ onBeforeUnmount(() => {
   <NavBar />
 
   <section class="admin-header">
-    <div class="container">
+    <div class="container admin-header__content">
       <h1>Benutzerverwaltung</h1>
       <p>Profile und Rollen verwalten.</p>
     </div>
@@ -265,9 +328,35 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
+      <div ref="sortDropdownRef" class="filter-dropdown">
+        <span class="filter-label">Sortieren</span>
+        <button type="button" class="filter-trigger" @click="isSortOpen = !isSortOpen">
+          {{ selectedSortLabel }}
+          <span>⌄</span>
+        </button>
+        <div v-if="isSortOpen" class="filter-popup">
+          <label v-for="sort in sortOptions" :key="sort.value" class="filter-option">
+            <input
+              type="radio"
+              name="user-sort"
+              :checked="selectedSort === sort.value"
+              @change="selectSort(sort.value)"
+            >
+            <span>{{ sort.label }}</span>
+          </label>
+        </div>
+      </div>
+
       <button type="button" class="btn btn-primary refresh-button" @click="loadUsers">Aktualisieren</button>
     </div>
-    <p class="filter-hint">Ohne Auswahl werden alle Orte und Rollen angezeigt.</p>
+    <p class="filter-hint">Ohne Auswahl werden alle Orte und Rollen angezeigt. Sortierung erfolgt nach dem gewählten Datum.</p>
+
+    <div class="actions-row">
+      <button type="button" class="btn btn-primary create-button" @click="openCreateUser">
+        <v-icon size="18">mdi-plus</v-icon>
+        <span>Benutzer hinzufügen</span>
+      </button>
+    </div>
 
     <p v-if="message" class="message">{{ message }}</p>
     <p v-if="isLoading" class="message">Benutzer werden geladen...</p>
@@ -300,7 +389,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="user-meta">
-          <span class="meta-item">Status: {{ displayValue(user.status) }}</span>
+          <span class="meta-item">Status: {{ formatUserStatusLabel(user.status) }}</span>
           <span class="meta-item">Alter: {{ displayValue(user.age) }}</span>
           <span class="meta-item">Ort: {{ displayValue(getCityName(user.city)) }}</span>
           <span v-if="user.practiceName" class="meta-item">Praxis: {{ user.practiceName }}</span>
@@ -328,8 +417,14 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, #155dfc10, #7AAE3810);
 }
 
+.admin-header__content {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
 .admin-header h1 {
-  margin: 0 0 12px;
+  margin: 0;
   color: #333;
   font-size: 34px;
 }
@@ -452,6 +547,17 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
+.actions-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 18px;
+}
+
+.create-button {
+  gap: 8px;
+  min-width: 210px;
+}
+
 .refresh-button {
   align-self: end;
   height: 44px;
@@ -460,6 +566,15 @@ onBeforeUnmount(() => {
 @media (max-width: 900px) {
   .filter-bar {
     flex-direction: column;
+  }
+
+  .actions-row {
+    justify-content: stretch;
+  }
+
+  .create-button {
+    width: 100%;
+    min-width: 0;
   }
 
   .filter-bar input,

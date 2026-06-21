@@ -7,6 +7,7 @@ import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import { API_BASE, useProfileStore, type BackendProfile, type UserRole } from '@/stores/profile'
 import { buildMailtoUrl, buildTelUrl, toExternalUrl } from '@/utils/doctorContact'
+import { formatUserName, formatUserStatusLabel, formatUserTitleLabel } from '@/utils/userFields'
 
 interface DetailRow {
   label: string
@@ -40,7 +41,7 @@ const displayName = computed(() => {
   const user = viewedUser.value
   if (!user) return 'Benutzer'
 
-  const fullName = [user.title, user.firstName, user.lastName].filter(Boolean).join(' ').trim()
+  const fullName = formatUserName(user)
   return fullName || user.name || 'Benutzer'
 })
 
@@ -56,29 +57,22 @@ const subtitle = computed(() => {
       .join(' · ')
   }
 
-  return [user.insurance, user.status].filter(Boolean).join(' · ')
+  return [user.insurance, user.status ? formatUserStatusLabel(user.status) : '']
+    .filter(Boolean)
+    .join(' · ')
 })
 
 const avatarImage = computed(() => viewedUser.value?.imageUrl?.trim() || '')
 
 const avatarFallback = computed(() => {
-  const source = displayName.value || viewedUser.value?.email || 'U'
+  const source = [viewedUser.value?.firstName, viewedUser.value?.lastName, viewedUser.value?.name]
+    .filter(Boolean)
+    .join(' ') || viewedUser.value?.email || 'U'
   const parts = source.split(' ').filter(Boolean)
   if (parts.length >= 2) {
     return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase()
   }
   return source.slice(0, 2).toUpperCase()
-})
-
-const summaryPill = computed(() => {
-  const user = viewedUser.value
-  if (!user) return ''
-
-  if (user.id !== null && user.id !== undefined) {
-    return `Benutzer-ID: #${user.id}`
-  }
-
-  return ''
 })
 
 const viewedUserSnapshot = computed(() => (viewedUser.value ? JSON.stringify(viewedUser.value) : ''))
@@ -168,6 +162,16 @@ function formatBirthday(value?: string | null) {
   return new Intl.DateTimeFormat('de-DE').format(date)
 }
 
+function formatDateTime(value?: string | null) {
+  if (!value) return 'Nicht hinterlegt'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return displayValue(value)
+  return new Intl.DateTimeFormat('de-DE', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
+
 function calculateAge(birthday?: string | null) {
   if (!birthday) return null
   const date = new Date(`${birthday}T00:00:00`)
@@ -199,7 +203,7 @@ function formatMoney(value?: number | null) {
 }
 
 function formatRating(value?: number | null) {
-  if (value === null || value === undefined) return 'Nicht hinterlegt'
+  if (value === null || value === undefined) return 'Noch keine Bewertungen'
   return value.toFixed(1)
 }
 
@@ -208,14 +212,14 @@ function buildPrimaryRows(user: BackendProfile | null): DetailRow[] {
 
   if (user.role === 'DOCTOR') {
     return [
-      { label: 'Titel', value: displayValue(user.title) },
+      { label: 'Titel', value: formatUserTitleLabel(user.title) },
       { label: 'Vorname', value: displayValue(user.firstName) },
       { label: 'Nachname', value: displayValue(user.lastName) },
       { label: 'Praxis', value: displayValue(user.practiceName) },
       { label: 'Fachrichtung', value: displayValue(user.doctorType?.name ?? user.specialization?.name) },
       { label: 'Bewertung', value: formatRating(user.rating) },
       { label: 'Honorar', value: formatMoney(user.consultationFee) },
-      { label: 'Status', value: displayValue(user.status) },
+      { label: 'Status', value: formatUserStatusLabel(user.status) },
     ]
   }
 
@@ -224,9 +228,8 @@ function buildPrimaryRows(user: BackendProfile | null): DetailRow[] {
       { label: 'Vorname', value: displayValue(user.firstName) },
       { label: 'Nachname', value: displayValue(user.lastName) },
       { label: 'E-Mail', value: displayValue(user.email) },
-      { label: 'Status', value: displayValue(user.status) },
+      { label: 'Status', value: formatUserStatusLabel(user.status) },
       { label: 'Versicherung', value: displayValue(user.insurance) },
-      { label: 'Rolle', value: roleToLabel(user.role) },
     ]
   }
 
@@ -237,7 +240,7 @@ function buildPrimaryRows(user: BackendProfile | null): DetailRow[] {
     { label: 'Alter', value: calculateAge(user.birthday)?.toString() ?? 'Nicht hinterlegt' },
     { label: 'E-Mail', value: displayValue(user.email) },
     { label: 'Versicherung', value: displayValue(user.insurance) },
-    { label: 'Status', value: displayValue(user.status) },
+    { label: 'Status', value: formatUserStatusLabel(user.status) },
   ]
 }
 
@@ -258,7 +261,8 @@ function buildSystemRows(user: BackendProfile | null): DetailRow[] {
   return [
     { label: 'Benutzer-ID', value: user.id !== null && user.id !== undefined ? `#${user.id}` : 'Nicht hinterlegt' },
     { label: 'Auth0 ID', value: displayValue(user.auth0Id) },
-    { label: 'Rolle', value: roleToLabel(user.role) },
+    { label: 'Erstellt am', value: formatDateTime(user.createdAt) },
+    { label: 'Zuletzt aktualisiert', value: formatDateTime(user.updatedAt) },
   ]
 }
 
@@ -380,7 +384,6 @@ watch(
           </router-link>
 
           <div class="overview-topline-actions">
-            <span v-if="viewerIsAdmin && summaryPill" class="id-pill">{{ summaryPill }}</span>
             <router-link
               v-if="canEdit"
               class="primary-button primary-button--compact"
@@ -406,7 +409,7 @@ watch(
             </div>
             <p class="overview-subtitle">{{ subtitle }}</p>
             <div class="overview-meta">
-              <span v-if="viewedUser.status" class="meta-pill">{{ displayValue(viewedUser.status) }}</span>
+              <span v-if="viewedUser.status" class="meta-pill">{{ formatUserStatusLabel(viewedUser.status) }}</span>
               <span v-if="viewedUser.insurance" class="meta-pill meta-pill--soft">{{ displayValue(viewedUser.insurance) }}</span>
             </div>
           </div>
@@ -541,18 +544,6 @@ watch(
 
 .back-link:hover {
   text-decoration: underline;
-}
-
-.id-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 38px;
-  padding: 0 14px;
-  color: #1f2a44;
-  background: #eef4ff;
-  border: 1px solid #d8e3f7;
-  border-radius: 999px;
-  font-weight: 600;
 }
 
 .overview-header {
