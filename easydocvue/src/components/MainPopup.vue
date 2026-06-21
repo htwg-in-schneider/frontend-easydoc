@@ -87,6 +87,7 @@ const icon = computed(() => {
   color: #555;
   font-size: 16px;
   line-height: 1.5;
+  white-space: pre-line;
 }
 
 .popup-actions {

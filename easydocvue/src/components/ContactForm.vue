@@ -42,7 +42,7 @@ function sendMail() {
 </script>
 
 <template>
-  <section class="contact-section">
+  <section id="kontakt" class="contact-section">
     <div class="contact-shell">
       <div class="contact-panel contact-info">
         <div class="contact-image-wrap">
@@ -129,6 +129,7 @@ function sendMail() {
 <style scoped>
 .contact-section {
   padding: 0 24px 96px;
+  scroll-margin-top: 24px;
 }
 
 .contact-shell {

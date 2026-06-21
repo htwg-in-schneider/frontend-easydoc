@@ -120,6 +120,15 @@ const selectedRoleLabel = computed(() => {
 })
 
 const selectedSortLabel = computed(() => sortOptions.find((sort) => sort.value === selectedSort.value)?.label || 'Erstellt: neueste zuerst')
+const hasActiveUserFilters = computed(() => (
+  search.value.trim().length > 0
+  || selectedCities.value.length > 0
+  || selectedRoles.value.length > 0
+))
+const userCountLabel = computed(() => {
+  const count = sortedUsers.value.length
+  return hasActiveUserFilters.value ? `${count} Treffer` : `${count} Benutzer`
+})
 
 function displayValue(value: string | number | null | undefined) {
   return value === null || value === undefined || value === '' ? 'Nicht hinterlegt' : value
@@ -352,6 +361,9 @@ onBeforeUnmount(() => {
     <p class="filter-hint">Ohne Auswahl werden alle Orte und Rollen angezeigt. Sortierung erfolgt nach dem gewählten Datum.</p>
 
     <div class="actions-row">
+      <div class="results-chip" aria-live="polite">
+        <strong>{{ userCountLabel }}</strong>
+      </div>
       <button type="button" class="btn btn-primary create-button" @click="openCreateUser">
         <v-icon size="18">mdi-plus</v-icon>
         <span>Benutzer hinzufügen</span>
@@ -549,13 +561,33 @@ onBeforeUnmount(() => {
 
 .actions-row {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   margin: 0 0 18px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .create-button {
   gap: 8px;
   min-width: 210px;
+}
+
+.results-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid #d8e3f7;
+  background: #f6f9ff;
+  color: #1f2a44;
+  box-shadow: 0 10px 22px rgba(24, 58, 150, 0.08);
+}
+
+.results-chip strong {
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .refresh-button {
@@ -575,6 +607,11 @@ onBeforeUnmount(() => {
   .create-button {
     width: 100%;
     min-width: 0;
+  }
+
+  .results-chip {
+    width: 100%;
+    justify-content: center;
   }
 
   .filter-bar input,

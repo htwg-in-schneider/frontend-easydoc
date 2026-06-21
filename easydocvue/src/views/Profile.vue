@@ -4,16 +4,22 @@ import { useAuth0 } from '@auth0/auth0-vue'
 import { storeToRefs } from 'pinia'
 import { usePopupStore } from '@/stores/popup'
 import { useProfileStore, API_BASE, type BackendProfile } from '@/stores/profile'
+import { useDoctorStore } from '@/stores/doctors'
+import { formatUserName, normalizeUserTitle, userTitleOptions } from '@/utils/userFields'
 import NavBar from '@/components/NavBar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
 const { isAuthenticated, getAccessTokenSilently, user } = useAuth0()
 const profileStore = useProfileStore()
+const doctorStore = useDoctorStore()
 const popup = usePopupStore()
 const { profile, isLoading, errorMessage } = storeToRefs(profileStore)
+const { doctorTypes } = storeToRefs(doctorStore)
 
 const isSaving = ref(false)
 const showAvatarPicker = ref(false)
+const doctorTypeId = ref<number | null>(null)
+const isDoctorProfile = computed(() => profile.value?.role === 'DOCTOR')
 
 const avatarOptions = [1, 2, 3, 4, 5, 6].map(i =>
   new URL(`../assets/images/profilbild_${i}.png`, import.meta.url).href
@@ -30,12 +36,15 @@ const form = ref({
   email: '',
   insurance: '',
   birthday: '',
+  title: 'NONE',
   imageUrl: '',
   phoneNumber: '',
   street: '',
   postcode: '',
   city: '',
   country: '',
+  practiceName: '',
+  website: '',
 })
 
 function calculateAge(birthday?: string | null) {
@@ -52,10 +61,7 @@ function calculateAge(birthday?: string | null) {
 }
 
 const displayName = computed(() => {
-  const firstName = profile.value?.firstName?.trim()
-  const lastName = profile.value?.lastName?.trim()
-  const fullName = [firstName, lastName].filter(Boolean).join(' ')
-  return fullName || profile.value?.name || 'Unbekannter Benutzer'
+  return formatUserName(profile.value ?? {}) || profile.value?.name || 'Unbekannter Benutzer'
 })
 
 const subtitle = computed(() => {
@@ -83,6 +89,9 @@ const fallbackInitial = computed(() => {
   return source.charAt(0).toUpperCase()
 })
 
+const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+const phoneRegex = /^\+?[0-9\s\-\/()]+$/
+
 function displayValue(value: string | number | null | undefined) {
   return value === null || value === undefined || value === '' ? 'Nicht hinterlegt' : value
 }
@@ -93,6 +102,19 @@ function normalizeCityValue(city: BackendProfile['city']) {
   return city.name ?? ''
 }
 
+function normalizeSpecializationId(profileValue: BackendProfile | null) {
+  return profileValue?.specialization?.id ?? profileValue?.doctorType?.id ?? null
+}
+
+function isValidEmail(value: string) {
+  return emailRegex.test(value.trim())
+}
+
+function isValidPhoneNumber(value: string) {
+  const text = value.trim()
+  return text === '' || phoneRegex.test(text)
+}
+
 function syncForm(source: BackendProfile | null) {
   form.value = {
     firstName: source?.firstName ?? '',
@@ -100,29 +122,66 @@ function syncForm(source: BackendProfile | null) {
     email: source?.email ?? '',
     insurance: source?.insurance ?? '',
     birthday: source?.birthday ?? '',
+    title: normalizeUserTitle(source?.title),
     imageUrl: source?.imageUrl?.trim() || user.value?.picture || '',
     phoneNumber: source?.phoneNumber ?? '',
     street: source?.street ?? '',
     postcode: source?.postcode ?? '',
     city: normalizeCityValue(source?.city),
     country: source?.country ?? '',
+    practiceName: source?.practiceName ?? '',
+    website: source?.website ?? '',
   }
+  doctorTypeId.value = normalizeSpecializationId(source)
 }
 
 async function loadBackendProfile() {
   if (!isAuthenticated.value) return
 
   const token = await getAccessTokenSilently()
-  await profileStore.load(token, true)
+  const loaded = await profileStore.load(token, true)
+  if (loaded?.role === 'DOCTOR') {
+    await doctorStore.fetchDoctorTypes()
+  }
 }
 
 async function saveProfile() {
   if (!isAuthenticated.value) return
 
-  if (!form.value.firstName || !form.value.lastName || !form.value.email) {
+  const missingFields = [
+    !form.value.firstName.trim() ? 'Vorname' : null,
+    !form.value.lastName.trim() ? 'Nachname' : null,
+    !form.value.email.trim() ? 'E-Mail' : null,
+    !form.value.street.trim() ? 'Straße' : null,
+    !form.value.postcode.trim() ? 'Postleitzahl' : null,
+    !form.value.city.trim() ? 'Stadt' : null,
+    !form.value.country.trim() ? 'Land' : null,
+    isDoctorProfile.value && !form.value.practiceName.trim() ? 'Praxisname' : null,
+    isDoctorProfile.value && !doctorTypeId.value ? 'Fachrichtung' : null,
+  ].filter((field): field is string => Boolean(field))
+
+  if (missingFields.length > 0) {
     await popup.showMessage({
       title: 'Pflichtfelder fehlen',
-      message: 'Bitte Vorname, Nachname und E-Mail ausfüllen.',
+      message: `Bitte folgende Felder ausfüllen:\n- ${missingFields.join('\n- ')}`,
+      variant: 'warning',
+    })
+    return
+  }
+
+  if (!isValidEmail(form.value.email)) {
+    await popup.showMessage({
+      title: 'Ungültige E-Mail',
+      message: 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
+      variant: 'warning',
+    })
+    return
+  }
+
+  if (!isValidPhoneNumber(form.value.phoneNumber)) {
+    await popup.showMessage({
+      title: 'Ungültige Telefonnummer',
+      message: 'Bitte geben Sie eine gültige Telefonnummer ein.',
       variant: 'warning',
     })
     return
@@ -143,6 +202,7 @@ async function saveProfile() {
         lastName: form.value.lastName,
         email: form.value.email,
         insurance: form.value.insurance,
+        title: form.value.title,
         birthday: form.value.birthday || null,
         imageUrl: form.value.imageUrl,
         phoneNumber: form.value.phoneNumber,
@@ -150,6 +210,9 @@ async function saveProfile() {
         postcode: form.value.postcode,
         city: form.value.city,
         country: form.value.country,
+        practiceName: isDoctorProfile.value ? form.value.practiceName : null,
+        website: isDoctorProfile.value ? form.value.website : null,
+        specializationId: isDoctorProfile.value ? doctorTypeId.value : null,
       }),
     })
 
@@ -220,28 +283,43 @@ watch(isAuthenticated, (authenticated) => {
       <form v-else class="profile-form" novalidate @submit.prevent="saveProfile">
         <div class="form-grid">
           <label>
-            Vorname
-            <input v-model="form.firstName" type="text" placeholder="Vorname">
+            Vorname *
+            <input v-model="form.firstName" type="text" placeholder="Vorname" required>
           </label>
 
           <label>
-            Nachname
-            <input v-model="form.lastName" type="text" placeholder="Nachname">
+            Nachname *
+            <input v-model="form.lastName" type="text" placeholder="Nachname" required>
           </label>
 
           <label>
-            E-Mail
-            <input v-model="form.email" type="email" placeholder="E-Mail">
+            E-Mail *
+            <input
+              v-model="form.email"
+              type="email"
+              placeholder="E-Mail"
+              required
+              inputmode="email"
+              pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
+              title="Bitte eine gültige E-Mail-Adresse eingeben."
+            >
           </label>
 
-          <label>
+          <label v-if="!isDoctorProfile">
             Versicherung
             <input v-model="form.insurance" type="text" placeholder="Versicherung">
           </label>
 
           <label>
             Telefon
-            <input v-model="form.phoneNumber" type="tel" placeholder="+49 ...">
+            <input
+              v-model="form.phoneNumber"
+              type="tel"
+              placeholder="+49 ..."
+              inputmode="tel"
+              pattern="^\+?[0-9\s\-\/()]+$"
+              title="Bitte eine gültige Telefonnummer eingeben."
+            >
           </label>
 
           <label>
@@ -250,26 +328,62 @@ watch(isAuthenticated, (authenticated) => {
           </label>
 
           <label>
-            Straße
-            <input v-model="form.street" type="text" placeholder="Straße und Hausnummer">
+            Titel
+            <select v-model="form.title">
+              <option v-for="option in userTitleOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
           </label>
 
           <label>
-            Postleitzahl
-            <input v-model="form.postcode" type="text" placeholder="PLZ">
+            Straße *
+            <input v-model="form.street" type="text" placeholder="Straße und Hausnummer" required>
           </label>
 
           <label>
-            Stadt
-            <input v-model="form.city" type="text" placeholder="Ort">
+            Postleitzahl *
+            <input v-model="form.postcode" type="text" placeholder="PLZ" required>
           </label>
 
           <label>
-            Land
-            <input v-model="form.country" type="text" placeholder="Land">
+            Stadt *
+            <input v-model="form.city" type="text" placeholder="Ort" required>
           </label>
 
+          <label>
+            Land *
+            <input v-model="form.country" type="text" placeholder="Land" required>
+          </label>
         </div>
+
+        <section v-if="isDoctorProfile" class="doctor-section">
+          <div class="doctor-section__head">
+            <h2>Arztprofil</h2>
+          </div>
+
+          <div class="form-grid form-grid--doctor">
+            <label>
+              Fachrichtung *
+              <select v-model="doctorTypeId" required>
+                <option :value="null">Bitte wählen</option>
+                <option v-for="type in doctorTypes" :key="type.id" :value="type.id">
+                  {{ type.name }}
+                </option>
+              </select>
+            </label>
+
+            <label>
+              Praxisname *
+              <input v-model="form.practiceName" type="text" placeholder="Praxisname" required>
+            </label>
+
+            <label>
+              Website
+              <input v-model="form.website" type="text" placeholder="https://...">
+            </label>
+          </div>
+        </section>
 
         <div class="form-actions">
           <button type="submit" class="btn btn-primary" :disabled="isSaving">
@@ -435,10 +549,60 @@ watch(isAuthenticated, (authenticated) => {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+.form-grid select:focus,
 .form-grid input:focus {
   outline: none;
   border-color: #155dfc;
   box-shadow: 0 0 0 3px rgba(21, 93, 252, 0.12);
+}
+
+.form-grid select {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid #d8e3f7;
+  border-radius: 10px;
+  font-size: 15px;
+  color: #1f2a44;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.doctor-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e4ebf7;
+}
+
+.doctor-section__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.doctor-section__head h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  color: #1f2a44;
+}
+
+.doctor-section__head p {
+  margin: 0;
+  color: #64708a;
+}
+
+.doctor-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #155dfc;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .full-width {

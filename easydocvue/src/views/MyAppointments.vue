@@ -83,7 +83,7 @@ const selectedAppointmentId = ref<number | null>(null)
 const hasManualMonthSelection = ref(false)
 const doctorLookupQuery = ref('')
 const patientLookupQuery = ref('')
-const adminVisibleLimit = ref(10)
+const appointmentVisibleLimit = ref(10)
 const hiddenAppointmentIds = ref<Set<number>>(new Set())
 
 let bodyOverflowBackup = ''
@@ -256,7 +256,7 @@ const visibleAppointmentCardsResult = computed<AppointmentCardsResult>(() => {
 
     total += 1
 
-    if (isAdmin.value && cards.length >= adminVisibleLimit.value) {
+    if (cards.length >= appointmentVisibleLimit.value) {
       continue
     }
 
@@ -268,7 +268,7 @@ const visibleAppointmentCardsResult = computed<AppointmentCardsResult>(() => {
 
 const visibleAppointmentCards = computed(() => visibleAppointmentCardsResult.value.cards)
 const visibleAppointmentCount = computed(() => visibleAppointmentCardsResult.value.total)
-const hasMoreVisibleAppointments = computed(() => isAdmin.value && visibleAppointmentCount.value > visibleAppointmentCards.value.length)
+const hasMoreVisibleAppointments = computed(() => visibleAppointmentCount.value > visibleAppointmentCards.value.length)
 
 const upcomingAppointments = computed(() => {
   const now = new Date()
@@ -542,7 +542,7 @@ function clearFilters() {
   selectedDateKey.value = null
   doctorLookupQuery.value = ''
   patientLookupQuery.value = ''
-  adminVisibleLimit.value = 10
+  appointmentVisibleLimit.value = 10
 }
 
 function clearDoctorLookup() {
@@ -554,7 +554,7 @@ function clearPatientLookup() {
 }
 
 function loadMoreAppointments() {
-  adminVisibleLimit.value += 10
+  appointmentVisibleLimit.value += 10
 }
 
 function shiftFocusedMonth(offset: number) {
@@ -739,7 +739,7 @@ watch(isAuthenticated, (authenticated) => {
     selectedDateKey.value = null
     doctorLookupQuery.value = ''
     patientLookupQuery.value = ''
-    adminVisibleLimit.value = 10
+    appointmentVisibleLimit.value = 10
     hiddenAppointmentIds.value = new Set()
   }
 }, { immediate: true })
@@ -755,9 +755,7 @@ watch(
 )
 
 watch([selectedFilter, selectedDateKey, doctorLookupQuery, patientLookupQuery], () => {
-  if (isAdmin.value) {
-    adminVisibleLimit.value = 10
-  }
+  appointmentVisibleLimit.value = 10
 
   if (selectedDateKey.value && !appointmentDateCounts.value.has(selectedDateKey.value)) {
     selectedDateKey.value = null

@@ -54,6 +54,36 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
+  scrollBehavior(to, _from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    }
+
+    if (to.hash) {
+      return new Promise((resolve) => {
+        let attempts = 0
+        const attemptScroll = () => {
+          const el = document.querySelector(to.hash)
+          if (el) {
+            resolve({ el, behavior: 'smooth' })
+            return
+          }
+
+          attempts += 1
+          if (attempts >= 60) {
+            resolve({ top: 0 })
+            return
+          }
+
+          requestAnimationFrame(attemptScroll)
+        }
+
+        requestAnimationFrame(attemptScroll)
+      })
+    }
+
+    return { top: 0 }
+  },
 })
 
 export default router

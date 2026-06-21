@@ -72,6 +72,7 @@ type UserUpdatePayload = {
   firstName: string
   lastName: string
   email: string
+  auth0Id: string | null
   role: UserRole
   insurance: string | null
   status: UserStatus
@@ -161,13 +162,14 @@ const form = ref<UserEditForm>(createDefaultForm())
 
 const isDoctorRole = computed(() => form.value.role === 'DOCTOR')
 const canDelete = computed(() => !isCreateMode.value)
-const selectedDoctorType = computed(() => doctorTypes.value.find((type) => type.id === doctorTypeId.value) ?? currentDoctorType.value)
 const doctorRatingLabel = computed(() => {
   const rating = originalUser.value?.rating
   if (rating === null || rating === undefined) return 'Noch keine Bewertungen'
   return `${rating.toFixed(2)} / 5`
 })
 const selectedStatusLabel = computed(() => userStatusOptions.find((option) => option.value === form.value.status)?.label ?? 'Active')
+const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+const phoneRegex = /^\+?[0-9\s\-\/()]+$/
 
 function normalizeTextField(value: unknown) {
   if (value === null || value === undefined || value === '') return ''
@@ -195,6 +197,15 @@ function normalizePayloadNumber(value: unknown) {
 
 function normalizeStoredFee(value: unknown) {
   return normalizePayloadNumber(value) ?? 0
+}
+
+function isValidEmail(value: string) {
+  return emailRegex.test(value.trim())
+}
+
+function isValidPhoneNumber(value: string) {
+  const text = value.trim()
+  return text === '' || phoneRegex.test(text)
 }
 
 function buildDisplayName(firstName = form.value.firstName, lastName = form.value.lastName) {
@@ -225,10 +236,6 @@ function formatDateTime(value?: string | null) {
   }).format(date)
 }
 
-function selectedDoctorTypeValue(): DoctorType | null {
-  return selectedDoctorType.value
-}
-
 function normalizeDoctorTypeRef(value: unknown): DoctorType | null {
   if (!value || typeof value !== 'object') return null
 
@@ -253,11 +260,12 @@ function toUserPayload(): UserUpdatePayload {
     firstName: normalizeTextField(form.value.firstName).trim(),
     lastName: normalizeTextField(form.value.lastName).trim(),
     email: normalizeTextField(form.value.email).trim(),
+    auth0Id: normalizePayloadText(form.value.auth0Id),
     role: form.value.role,
     insurance: normalizePayloadText(form.value.insurance),
     status: normalizeUserStatus(form.value.status) ?? 'ACTIVE',
     birthday: normalizePayloadText(form.value.birthday),
-    title: isDoctorRole.value ? normalizeUserTitle(form.value.title) : 'NONE',
+    title: normalizeUserTitle(form.value.title),
     practiceName: isDoctorRole.value ? normalizePayloadText(form.value.practiceName) : null,
     phoneNumber: isDoctorRole.value ? normalizePayloadText(form.value.phoneNumber) : null,
     website: isDoctorRole.value ? normalizePayloadText(form.value.website) : null,
@@ -283,11 +291,12 @@ function buildSnapshot(): BackendProfile | null {
     firstName: normalizeTextField(form.value.firstName).trim(),
     lastName: normalizeTextField(form.value.lastName).trim(),
     email: normalizeTextField(form.value.email).trim(),
+    auth0Id: normalizePayloadText(form.value.auth0Id),
     role: form.value.role,
     insurance: normalizePayloadText(form.value.insurance),
     status: normalizeUserStatus(form.value.status) ?? 'ACTIVE',
     birthday: normalizePayloadText(form.value.birthday),
-    title: isDoctorRole.value ? normalizeUserTitle(form.value.title) : 'NONE',
+    title: normalizeUserTitle(form.value.title),
     practiceName: isDoctorRole.value ? normalizePayloadText(form.value.practiceName) : null,
     phoneNumber: isDoctorRole.value ? normalizePayloadText(form.value.phoneNumber) : null,
     website: isDoctorRole.value ? normalizePayloadText(form.value.website) : null,
@@ -300,8 +309,8 @@ function buildSnapshot(): BackendProfile | null {
     consultationFee: normalizeStoredFee(form.value.consultationFee),
     createdAt: originalUser.value?.createdAt ?? null,
     updatedAt: originalUser.value?.updatedAt ?? null,
-    specialization: isDoctorRole.value ? selectedDoctorTypeValue() : null,
-    doctorType: isDoctorRole.value ? selectedDoctorTypeValue() : null,
+    specialization: isDoctorRole.value ? (doctorTypes.value.find((type) => type.id === doctorTypeId.value) ?? currentDoctorType.value) : null,
+    doctorType: isDoctorRole.value ? (doctorTypes.value.find((type) => type.id === doctorTypeId.value) ?? currentDoctorType.value) : null,
   }
 }
 
@@ -463,10 +472,43 @@ async function loadUser() {
 }
 
 async function onUpdate() {
-  if (!form.value.firstName || !form.value.lastName || !form.value.email || !form.value.role) {
+  const missingFields = [
+    !normalizeTextField(form.value.firstName).trim() ? 'Vorname' : null,
+    !normalizeTextField(form.value.lastName).trim() ? 'Nachname' : null,
+    !normalizeTextField(form.value.email).trim() ? 'E-Mail' : null,
+    !form.value.role ? 'Rolle' : null,
+    !normalizeTextField(form.value.street).trim() ? 'Straße' : null,
+    !normalizeTextField(form.value.postcode).trim() ? 'Postleitzahl' : null,
+    !normalizeTextField(form.value.city).trim() ? 'Stadt' : null,
+    !normalizeTextField(form.value.country).trim() ? 'Land' : null,
+    isDoctorRole.value && !normalizeTextField(form.value.practiceName).trim() ? 'Praxisname' : null,
+    isDoctorRole.value && !doctorTypeId.value ? 'Fachrichtung' : null,
+  ].filter((field): field is string => Boolean(field))
+
+  if (missingFields.length > 0) {
     await popup.showMessage({
       title: 'Pflichtfelder fehlen',
-      message: 'Bitte Vorname, Nachname, E-Mail und Rolle ausfüllen.',
+      message: `Bitte folgende Felder ausfüllen:\n- ${missingFields.join('\n- ')}`,
+      variant: 'warning',
+    })
+    return
+  }
+
+  const email = normalizeTextField(form.value.email).trim()
+  if (!isValidEmail(email)) {
+    await popup.showMessage({
+      title: 'Ungültige E-Mail',
+      message: 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
+      variant: 'warning',
+    })
+    return
+  }
+
+  const phone = normalizeTextField(form.value.phoneNumber).trim()
+  if (!isValidPhoneNumber(phone)) {
+    await popup.showMessage({
+      title: 'Ungültige Telefonnummer',
+      message: 'Bitte geben Sie eine gültige Telefonnummer ein.',
       variant: 'warning',
     })
     return
@@ -635,7 +677,14 @@ onMounted(loadUser)
 
             <label class="field">
               <span>E-Mail *</span>
-              <input v-model="form.email" type="email" required>
+              <input
+                v-model="form.email"
+                type="email"
+                required
+                inputmode="email"
+                pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
+                title="Bitte eine gültige E-Mail-Adresse eingeben."
+              >
             </label>
 
             <label class="field">
@@ -645,7 +694,13 @@ onMounted(loadUser)
 
             <label class="field">
               <span>Telefon</span>
-              <input v-model="form.phoneNumber" type="tel">
+              <input
+                v-model="form.phoneNumber"
+                type="tel"
+                inputmode="tel"
+                pattern="^\+?[0-9\s\-\/()]+$"
+                title="Bitte eine gültige Telefonnummer eingeben."
+              >
             </label>
 
             <label class="field">
@@ -660,6 +715,15 @@ onMounted(loadUser)
               <span>Status</span>
               <select v-model="form.status" required>
                 <option v-for="option in userStatusOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Titel</span>
+              <select v-model="form.title">
+                <option v-for="option in userTitleOptions" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </option>
               </select>
@@ -683,6 +747,18 @@ onMounted(loadUser)
             <label class="field">
               <span>Land *</span>
               <input v-model="form.country" type="text" required>
+            </label>
+
+            <label class="field">
+              <span>Entfernung (km)</span>
+              <input
+                v-model.number="form.distance"
+                type="number"
+                min="0"
+                step="0.1"
+                inputmode="decimal"
+                placeholder="0.0"
+              >
             </label>
           </div>
 
@@ -733,15 +809,6 @@ onMounted(loadUser)
 
           <div class="field-grid field-grid--three">
             <label class="field">
-              <span>Titel</span>
-              <select v-model="form.title">
-                <option v-for="option in userTitleOptions" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </option>
-              </select>
-            </label>
-
-            <label class="field">
               <span>Fachrichtung *</span>
               <select v-model="doctorTypeId" required>
                 <option :value="null">Bitte wählen</option>
@@ -760,8 +827,6 @@ onMounted(loadUser)
               <span>Website</span>
               <input v-model="form.website" type="text">
             </label>
-
-            <div class="field-spacer" />
           </div>
 
           <div class="rating-card">
@@ -773,26 +838,26 @@ onMounted(loadUser)
           </div>
         </section>
 
-        <section v-if="!isCreateMode" class="card">
+        <section class="card">
           <div class="card-head">
             <div>
               <h2>Systeminformationen</h2>
-              <p>Technische Informationen (nicht editierbar).</p>
+              <p>Authentifizierungsdaten und Zeitstempel.</p>
             </div>
           </div>
 
           <div class="system-grid">
-            <div class="system-field">
+            <label class="system-field system-field--input">
               <span>Auth0 ID</span>
-              <strong>{{ form.auth0Id || 'Nicht hinterlegt' }}</strong>
-            </div>
+              <input v-model="form.auth0Id" type="text" placeholder="auth0|...">
+            </label>
             <div class="system-field">
               <span>Erstellt am</span>
-              <strong>{{ formatDateTime(form.createdAt) }}</strong>
+              <strong>{{ isCreateMode ? 'Wird beim Anlegen gesetzt' : formatDateTime(form.createdAt) }}</strong>
             </div>
             <div class="system-field">
               <span>Zuletzt aktualisiert</span>
-              <strong>{{ formatDateTime(form.updatedAt) }}</strong>
+              <strong>{{ isCreateMode ? 'Wird beim Speichern gesetzt' : formatDateTime(form.updatedAt) }}</strong>
             </div>
           </div>
         </section>
@@ -1124,6 +1189,24 @@ onMounted(loadUser)
   border-radius: 16px;
   background: #f8fafc;
   border: 1px solid #e4ebf7;
+}
+
+.system-field input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid #d7e1f3;
+  background: #fff;
+  color: #1f2a44;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.system-field input:focus {
+  border-color: #155dfc;
+  box-shadow: 0 0 0 3px rgba(21, 93, 252, 0.14);
 }
 
 .system-field span {

@@ -59,23 +59,23 @@ const resultDoctors = computed(() => {
 const hasAnyResults = computed(() => resultSpecializations.value.length > 0 || resultDoctors.value.length > 0)
 
 const analysisPrompt = computed(() => {
-  if (isAnalyzing.value) {
-    return 'Analyse läuft…'
-  }
-
   if (errorMessage.value) {
     return errorMessage.value
   }
 
-  if (selectedSymptomIds.value.length === 0) {
+  if (selectedSymptomIds.value.length === 0 && !analysis.value) {
     return 'Bitte wählen Sie mindestens ein Symptom aus.'
   }
 
-  if (!hasAnalyzed.value) {
+  if (isAnalyzing.value && !analysis.value) {
+    return 'Analyse läuft…'
+  }
+
+  if (!hasAnalyzed.value && !analysis.value && selectedSymptomIds.value.length > 0) {
     return 'Klicken Sie auf „Symptome analysieren“, um passende Fachrichtungen zu sehen.'
   }
 
-  if (!hasAnyResults.value) {
+  if (!hasAnyResults.value && hasAnalyzed.value && !isAnalyzing.value) {
     return 'Keine passenden Ärzte gefunden.'
   }
 
@@ -97,12 +97,6 @@ function isSelected(symptomId: number) {
   return selectedSymptomIds.value.includes(symptomId)
 }
 
-function invalidateAnalysis() {
-  hasAnalyzed.value = false
-  selectedSpecializationId.value = null
-  symptomStore.clearAnalysis()
-}
-
 function parseSymptomIdsFromQuery(input: unknown): number[] {
   const raw = Array.isArray(input) ? input.join(',') : typeof input === 'string' ? input : ''
   return raw
@@ -114,7 +108,6 @@ function parseSymptomIdsFromQuery(input: unknown): number[] {
 function queryStateMatches() {
   const expectedIds = selectedSymptomIds.value.join(',')
   const queryIds = Array.isArray(route.query.symptoms) ? route.query.symptoms.join(',') : route.query.symptoms ?? ''
-  const querySearch = Array.isArray(route.query.q) ? route.query.q.join(',') : route.query.q ?? ''
   const querySpecialization = Array.isArray(route.query.specialization)
     ? route.query.specialization[0]
     : route.query.specialization ?? ''
@@ -123,7 +116,6 @@ function queryStateMatches() {
 
   return (
     queryIds === expectedIds &&
-    querySearch === searchTerm.value.trim() &&
     querySpecialization === (selectedSpecializationId.value !== null ? String(selectedSpecializationId.value) : '') &&
     queryAnalyzed === (hasAnalyzed.value && selectedSymptomIds.value.length > 0 ? '1' : '') &&
     route.hash === expectedHash
@@ -138,11 +130,6 @@ async function syncRouteState() {
   const nextQuery: Record<string, string> = {}
   if (selectedSymptomIds.value.length > 0) {
     nextQuery.symptoms = selectedSymptomIds.value.join(',')
-  }
-
-  const trimmedSearch = searchTerm.value.trim()
-  if (trimmedSearch) {
-    nextQuery.q = trimmedSearch
   }
 
   if (selectedSpecializationId.value !== null) {
@@ -171,17 +158,23 @@ function toggleSymptom(symptomId: number) {
   }
 
   selectedSymptomIds.value = nextIds
-  invalidateAnalysis()
+  if (nextIds.length === 0) {
+    selectedSpecializationId.value = null
+  }
 }
 
 function removeSymptom(symptomId: number) {
   selectedSymptomIds.value = selectedSymptomIds.value.filter((id) => id !== symptomId)
-  invalidateAnalysis()
+  if (selectedSymptomIds.value.length === 0) {
+    selectedSpecializationId.value = null
+  }
 }
 
 function resetSelection() {
   selectedSymptomIds.value = []
-  invalidateAnalysis()
+  selectedSpecializationId.value = null
+  hasAnalyzed.value = false
+  symptomStore.clearAnalysis()
   visibleSymptomCount.value = 20
 }
 
@@ -249,14 +242,8 @@ function formatAddress(doctor: { street?: string | null; postcode?: string | nul
   return address || 'Adresse nicht hinterlegt'
 }
 
-watch([selectedSymptomIds, searchTerm, hasAnalyzed, selectedSpecializationId], () => {
+watch([selectedSymptomIds, hasAnalyzed, selectedSpecializationId], () => {
   void syncRouteState()
-})
-
-watch(selectedSymptomIds, () => {
-  if (selectedSymptomIds.value.length === 0) {
-    invalidateAnalysis()
-  }
 })
 
 onMounted(async () => {
@@ -386,7 +373,7 @@ onMounted(async () => {
 
           <button type="button" class="analyze-btn" :disabled="selectedSymptomIds.length === 0 || isAnalyzing" @click="handleAnalyze">
             <v-icon size="18">mdi-magnify-scan</v-icon>
-            Symptome analysieren
+            {{ isAnalyzing ? 'Analyse läuft…' : 'Symptome analysieren' }}
           </button>
         </div>
       </div>

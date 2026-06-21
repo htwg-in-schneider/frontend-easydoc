@@ -14,8 +14,7 @@
 
       <nav class="footer-column">
         <h4>Hilfe &amp; Support</h4>
-        <a href="#">FAQ</a>
-        <a href="#">Kontakt</a>
+        <router-link :to="{ path: '/', hash: '#kontakt' }">Kontakt</router-link>
         <router-link to="/datenschutz">Datenschutz</router-link>
         <router-link to="/impressum">Impressum</router-link>
       </nav>

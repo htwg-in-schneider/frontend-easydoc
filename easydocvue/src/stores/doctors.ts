@@ -398,7 +398,8 @@ export const useDoctorStore = defineStore('doctors', () => {
   }
 
   async function getAllAppointments(token: string): Promise<Appointment[]> {
-    const data = await requestJson<any[]>(`${API_BASE}/appointments`, {
+    const params = new URLSearchParams({ upcomingOnly: 'false' })
+    const data = await requestJson<any[]>(`${API_BASE}/appointments?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     return (Array.isArray(data) ? data : []).map(normalizeAppointment)
