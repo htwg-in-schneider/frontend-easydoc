@@ -6,7 +6,7 @@ import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/easydocvue/',
+  base: process.env.NODE_ENV === 'production' ? '/frontend-easydoc/' : '/',
   plugins: [
     Vue({
       template: { transformAssetUrls },
