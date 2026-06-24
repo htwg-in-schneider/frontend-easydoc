@@ -30,7 +30,7 @@ const appointmentsLabel = computed(() => (isAdmin.value ? 'Alle Termine' : 'Mein
 const desktopNavItems = computed<NavItem[]>(() => {
   if (isAdmin.value) {
     return [
-      { label: 'Benutzer', to: '/Benutzerverwaltung' },
+      { label: 'Benutzer', to: '/admin/users' },
       { label: 'Arzt finden', to: '/doctors/map' },
       { label: appointmentsLabel.value, to: '/my-bookings' },
       { label: 'Umsatz', to: '/admin/revenue' },
