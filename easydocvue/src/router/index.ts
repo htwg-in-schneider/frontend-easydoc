@@ -45,8 +45,7 @@ const routes = [
   { path: '/admin/users/edit/:id', name: 'user-edit', component: EditUser, beforeEnter: authGuard },
   { path: '/doctor/dashboard', name: 'doctor-dashboard', component: DoctorDashboard, beforeEnter: authGuard },
   { path: '/symptom-analysis', name: 'symptom-analysis', component: SymptomAnalysis },
-  { path: '/benutzerverwaltung', name: 'benutzerverwaltung', component: AdminUsers, beforeEnter: authGuard },
-  { path: '/impressum', name: 'impressum', component: Impressum },
+{ path: '/impressum', name: 'impressum', component: Impressum },
   { path: '/datenschutz', name: 'datenschutz', component: Datenschutz },
   { path: '/admin/revenue', name: 'admin-revenue', component: AdminRevenue, beforeEnter: authGuard },
 ]

@@ -144,68 +144,6 @@ html, body {
 
 
 
-.WhatsEasyDoc {
- display: flex;
-  align-items: flex-start; 
-  justify-content: space-between;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 80px 20px;
-  gap: 50px;
-}
-
-
-.ExplainEasyDoc {
-  flex: 1;
-}
-
-.ExplainEasyDoc h1 {
-  font-size: 48px;
-  margin-bottom: 20px;
-  margin-bottom: 30px;
-  margin-top: 0;
-}
-
-.ExplainEasyDoc p {
-  font-size: 20px;
-  margin-bottom: 100px;
-  color: #555;
-}
-
-.ExplainEasyDoc ul {
-  list-style: none;
-  padding: 0;
-  margin-top: 0;
-}
-
-.ExplainEasyDoc li {
-  margin-bottom: 12px;
-  font-size: 20px;
-  position: relative;
-  padding-left: 25px;
-}
-
-
-.ExplainEasyDoc li::before {
-  content: "✔";
-  position: absolute;
-  left: 0;
-  color: #155dfc;
-}
-
-
-.DocImage {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-}
-
-.DocImage img {
-  max-width: 100%;
-  height: auto;
-}
-
-
 .ziele {
   text-align: center;
   padding: 80px 20px;

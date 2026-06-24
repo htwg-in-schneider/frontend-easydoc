@@ -1018,10 +1018,6 @@ onMounted(loadUser)
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.field-grid--two {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 .field {
   display: grid;
   gap: 8px;
@@ -1315,7 +1311,6 @@ onMounted(loadUser)
   }
 
   .field-grid--three,
-  .field-grid--two,
   .system-grid,
   .role-grid {
     grid-template-columns: 1fr;

@@ -1404,12 +1404,6 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.mini-button--soft {
-  height: 36px;
-  background: #eef4ff;
-  color: #155dfc;
-}
-
 .icon-button {
   width: 34px;
 }
@@ -2213,10 +2207,6 @@ onBeforeUnmount(() => {
   background: #f8fbff;
   border: 1px solid #e2eaf9;
   border-radius: 18px;
-}
-
-.contact-block--secondary {
-  background: #fff;
 }
 
 .contact-block strong {

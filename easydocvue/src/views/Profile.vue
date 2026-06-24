@@ -593,22 +593,6 @@ watch(isAuthenticated, (authenticated) => {
   color: #64708a;
 }
 
-.doctor-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #eef5ff;
-  color: #155dfc;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.full-width {
-  grid-column: 1 / -1;
-}
-
 .form-actions {
   display: flex;
   justify-content: flex-end;
