@@ -204,13 +204,13 @@ function loadMoreDoctors() {
   transform: translateY(-1px);
 }
 
-@media (max-width: 992px) {
+@media (max-width: 900px) {
   .doctor-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .doctor-grid {
     grid-template-columns: 1fr;
   }

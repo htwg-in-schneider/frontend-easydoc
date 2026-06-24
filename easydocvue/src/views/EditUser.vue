@@ -1287,7 +1287,7 @@ onMounted(loadUser)
   background: #b72d3b;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 900px) {
   .page-head {
     grid-template-columns: 1fr;
     justify-items: start;
@@ -1300,7 +1300,7 @@ onMounted(loadUser)
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 640px) {
   .edit-user-page {
     padding: 28px 14px 52px;
   }

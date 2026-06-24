@@ -506,4 +506,40 @@ watch(selectedYear, load)
   color: #155dfc;
 }
 
+
+@media (max-width: 900px) {
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-group,
+  .filter-group--wide {
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .revenue-page {
+    padding: 24px 14px;
+  }
+
+  .summary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-wrapper {
+    height: 200px;
+  }
+
+  .table-card {
+    overflow-x: auto;
+  }
+
+  .revenue-table {
+    min-width: 500px;
+  }
+}
 </style>

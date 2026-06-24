@@ -119,7 +119,7 @@ p {
   margin: 0 0 8px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .legal-container {
     padding: 28px 20px;
   }

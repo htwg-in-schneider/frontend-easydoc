@@ -263,7 +263,7 @@ function handleFindDoctor() {
   }
 }
 
-@media (max-width: 820px) {
+@media (max-width: 640px) {
   .hero-section {
     padding: 32px 16px 68px;
   }

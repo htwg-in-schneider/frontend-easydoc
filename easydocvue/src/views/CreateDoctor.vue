@@ -259,4 +259,22 @@ async function onCreate() {
 .btn-secondary:hover {
   background: #dce8fd;
 }
+
+@media (max-width: 640px) {
+  .form-container {
+    padding: 32px 16px;
+  }
+
+  .form-container h2 {
+    font-size: 22px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}
 </style>

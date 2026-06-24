@@ -1075,13 +1075,13 @@ onMounted(async () => {
   background: #f8fbff;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 900px) {
   .calendar-layout {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 640px) {
   .booking-head {
     flex-direction: column;
   }

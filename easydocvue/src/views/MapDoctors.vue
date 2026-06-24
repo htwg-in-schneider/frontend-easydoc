@@ -569,7 +569,7 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .map-layout {
     flex-direction: column;
     height: auto;

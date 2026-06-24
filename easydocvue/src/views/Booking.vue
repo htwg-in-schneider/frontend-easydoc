@@ -246,7 +246,7 @@ function goToSlotSelection() {
   font-weight: 600;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .doctor-info {
     flex-direction: column;
     align-items: center;

@@ -135,13 +135,13 @@ const stats = [
   line-height: 1.4;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 900px) {
   .kpi-grid {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 640px) {
   .kpi-section {
     padding-inline: 16px;
     padding-bottom: 84px;

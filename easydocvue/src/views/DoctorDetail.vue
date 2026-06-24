@@ -520,7 +520,7 @@ onMounted(async () => {
   box-shadow: 0 10px 20px rgba(21, 93, 252, 0.12);
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 900px) {
   .doctor-hero,
   .doctor-grid {
     grid-template-columns: 1fr;

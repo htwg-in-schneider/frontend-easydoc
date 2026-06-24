@@ -764,7 +764,7 @@ watch(
   box-shadow: 0 10px 20px rgba(21, 93, 252, 0.12);
 }
 
-@media (max-width: 980px) {
+@media (max-width: 900px) {
   .overview-header,
   .overview-grid {
     grid-template-columns: 1fr;

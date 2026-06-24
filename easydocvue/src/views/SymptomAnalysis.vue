@@ -1245,7 +1245,7 @@ onMounted(async () => {
   }
 }
 
-@media (max-width: 820px) {
+@media (max-width: 640px) {
   .symptom-page {
     padding: 28px 14px 64px;
   }

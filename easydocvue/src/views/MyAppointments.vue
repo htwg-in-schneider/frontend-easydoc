@@ -2393,7 +2393,7 @@ onBeforeUnmount(() => {
   background: #fff4d6;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 900px) {
   .appointments-shell {
     grid-template-columns: 1fr;
   }
